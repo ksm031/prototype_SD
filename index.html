@@ -154,6 +154,18 @@ const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
 const CHAR_SPD = 10;       // px per frame (at 60fps)
 const CHAIN_MS = 50;       // ms between block pops
 const SESSION  = 90;
+const FRAME_MS = 80;       // ms per sprite frame
+
+// ── CHOMPY 스프라이트 ──────────────────────
+const SPR = {};
+(function loadSprites() {
+  const names = ['idle_01','jump01','jump02','jump03','jump04','jump05','jump06','jump07','jump08'];
+  for (const n of names) {
+    const img = new Image();
+    img.src = `res/chompy/${n}.png`;
+    SPR[n] = img;
+  }
+})();
 
 const SK = { gold: 'cc_gold', hs: 'cc_hs' };
 
@@ -320,11 +332,12 @@ function initChar() {
   char = {
     x: BASE_X, y: BASE_Y,
     tx: BASE_X, ty: BASE_Y,
-    state: 'idle',   // idle|moving|eating|stunned|returning
+    state: 'idle',   // idle|moving|eating|stunned|returning|landing
     hp: 3,
-    emoji: '👾',
     tr: -1, tc: -1,
     sc: 1.0,          // scale anim
+    sprFrame: 'idle_01',
+    frameT: 0,
   };
 }
 
@@ -337,7 +350,29 @@ function goBase() {
 function updateChar(dt) {
   if (char.sc > 1.0) char.sc = Math.max(1.0, char.sc - 0.05);
   const s = char.state;
-  if (s === 'idle' || s === 'eating' || s === 'stunned') return;
+
+  // ── 스프라이트 프레임 진행 ──────────────
+  char.frameT += dt;
+  if (s === 'idle' || s === 'stunned') {
+    char.sprFrame = 'idle_01';
+    char.frameT = 0;
+  } else if (s === 'moving') {
+    // jump01→04: 준비→발사→상승→고점
+    const fi = Math.min(3, Math.floor(char.frameT / FRAME_MS));
+    char.sprFrame = `jump0${fi + 1}`;
+  } else if (s === 'eating') {
+    char.sprFrame = 'jump04'; // 고점 유지
+  } else if (s === 'returning') {
+    // jump05→06: 떨어짐
+    const fi = Math.min(1, Math.floor(char.frameT / FRAME_MS));
+    char.sprFrame = `jump0${fi + 5}`;
+  } else if (s === 'landing') {
+    // jump07→08: 랜딩→회복
+    const fi = Math.min(1, Math.floor(char.frameT / FRAME_MS));
+    char.sprFrame = fi === 0 ? 'jump07' : 'jump08';
+  }
+
+  if (s === 'idle' || s === 'eating' || s === 'stunned' || s === 'landing') return;
 
   const dx = char.tx - char.x;
   const dy = char.ty - char.y;
@@ -348,10 +383,17 @@ function updateChar(dt) {
     char.x = char.tx; char.y = char.ty;
     if (s === 'moving') {
       char.state = 'eating';
+      char.frameT = 0;
       startEat(char.tr, char.tc);
     } else if (s === 'returning') {
-      char.state = 'idle';
-      locked = false;
+      // 랜딩 애니메이션 후 idle로
+      char.state = 'landing';
+      char.frameT = 0;
+      setTimeout(() => {
+        char.state = 'idle';
+        char.frameT = 0;
+        locked = false;
+      }, FRAME_MS * 2 + 40);
     }
   } else {
     char.x += (dx / d) * spd;
@@ -369,12 +411,10 @@ function startEat(r, c) {
   if (!block) {
     // Empty cell hit
     char.hp--;
-    char.emoji = '😵';
     char.state = 'stunned';
     shake(6, 18);
     popup(char.x, char.y - 44, 'OW!', '#ff5555');
     setTimeout(() => {
-      char.emoji = '👾';
       goBase();
       checkOver();
     }, 750);
@@ -464,7 +504,6 @@ function finishChain(combo) {
 
   setTimeout(() => {
     gravity();
-    char.emoji = '👾';
     goBase();
     checkOver();
   }, 200);
@@ -488,7 +527,6 @@ function endGame(reason) {
     sGold += 100;
     bigPopup('PERFECT!!', '#7ec850');
   } else if (reason === 'hp') {
-    char.emoji = '💥';
     shake(14, 30);
   }
   slowFactor = 0.2;
@@ -678,19 +716,22 @@ function drawGrid() {
 }
 
 function drawChar() {
-  const s = char.sc;
+  const img = SPR[char.sprFrame];
+  if (!img || !img.complete) return;
+
+  const SIZE = 56; // 캔버스상 표시 크기
+  const sc = char.sc;
   ctx.save();
   ctx.translate(char.x, char.y);
-  ctx.scale(s, s);
-  ctx.font = '38px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(char.emoji, 0, 0);
+  ctx.scale(sc, sc);
+  ctx.drawImage(img, -SIZE / 2, -SIZE / 2, SIZE, SIZE);
 
   // Stun stars
   if (char.state === 'stunned') {
     const t = Date.now() / 180;
     ctx.font = '13px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     for (let i = 0; i < 3; i++) {
       const a = t + (i / 3) * Math.PI * 2;
       ctx.fillText('⭐', Math.cos(a) * 26, Math.sin(a) * 16 - 30);
