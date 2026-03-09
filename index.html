@@ -383,19 +383,9 @@ function wave(row, col) {
     if (!inB(nr, nc) || !grid[nr][nc]) continue;
     grid[nr][nc].hp--;
     if (grid[nr][nc].hp <= 0) {
-      const bonus = getChain(grid[nr][nc].chainId);
-      if (bonus.length > 1) {
-        const bx = GX + nc * CELL + CELL / 2;
-        const by = GY + nr * CELL;
-        setTimeout(() => {
-          popup(bx, by - 8, 'BONUS!', '#ff9f40');
-          runChain(bonus, nr, nc);
-        }, 300);
-      } else {
-        removeBlock(nr, nc);
-        sBlocks++;
-        sGold += 10;
-      }
+      removeBlock(nr, nc);
+      sBlocks++;
+      sGold += 10;
     }
   }
 }
