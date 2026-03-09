@@ -176,6 +176,7 @@ let locked = false;  // input lock during chain
 let shakeFr = 0, shakeAmt = 0;
 let popups    = [];  // { x,y,text,color,life,vy,big }
 let particles = [];  // { x,y,vx,vy,r,color,life }
+let ripples   = [];  // { x,y,rad,life } — wave 시각화
 
 // ═══════════════════════════════════════
 //  STORAGE
@@ -216,7 +217,7 @@ function showMain() {
 //  GRID
 // ═══════════════════════════════════════
 function mkBlock(color) {
-  return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1 };
+  return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1, animY: null, fallV: 0 };
 }
 
 function initGrid() {
@@ -270,6 +271,12 @@ function removeBlock(r, c) {
 }
 
 function gravity() {
+  // 현재 시각 Y 고정 (이동 전에 저장)
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && grid[r][c].animY === null)
+        grid[r][c].animY = GY + r * CELL;
+
   for (let c = 0; c < COLS; c++) {
     let empty = ROWS - 1;
     for (let r = ROWS - 1; r >= 0; r--) {
@@ -279,9 +286,31 @@ function gravity() {
         empty--;
       }
     }
-    for (let r = empty; r >= 0; r--) grid[r][c] = mkBlock();
+    // 새 블록은 그리드 위에서 낙하 시작
+    let spawnY = GY - CELL;
+    for (let r = empty; r >= 0; r--) {
+      const blk = mkBlock();
+      blk.animY = spawnY;
+      spawnY -= CELL;
+      grid[r][c] = blk;
+    }
   }
   buildChains();
+}
+
+function updateBlockAnims(dt) {
+  const spd = dt / 16.67;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const blk = grid[r][c];
+      if (!blk) continue;
+      const targetY = GY + r * CELL;
+      if (blk.animY === null) { blk.animY = targetY; continue; }
+      if (blk.animY >= targetY - 0.5) { blk.animY = targetY; blk.fallV = 0; continue; }
+      blk.fallV += 0.65 * spd;
+      blk.animY = Math.min(targetY, blk.animY + blk.fallV * spd);
+    }
+  }
 }
 
 // ═══════════════════════════════════════
@@ -392,6 +421,8 @@ function runChain(chainBlocks, sr, sc) {
     combo++;
     sBlocks++;
     sGold += 10;
+    // 충격파 링 이펙트
+    ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
     wave(r, c);
     if (combo >= 5) {
       const bx = GX + c * CELL + CELL / 2;
@@ -406,6 +437,7 @@ function wave(row, col) {
     if (!inB(nr, nc) || !grid[nr][nc]) continue;
     grid[nr][nc].hp--;
     if (grid[nr][nc].hp <= 0) {
+      ripples.push({ x: GX + nc * CELL + CELL / 2, y: GY + nr * CELL + CELL / 2, rad: 4, life: 0.8 });
       removeBlock(nr, nc);
       sBlocks++;
       sGold += 10;
@@ -530,6 +562,7 @@ function render(dt) {
   ctx.fillRect(-20, -20, AW + 40, AH + 40);
 
   drawGrid();
+  drawRipples();
   drawChar();
   drawParticles();
   drawHUD();
@@ -566,20 +599,22 @@ function drawHUD() {
 }
 
 function drawGrid() {
-  // Chain size map
   const csz = {};
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
       if (grid[r][c]) { const id = grid[r][c].chainId; csz[id] = (csz[id]||0) + 1; }
 
+  const now = Date.now();
+
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const x = GX + c * CELL, y = GY + r * CELL;
+      const x  = GX + c * CELL;
+      const ly = GY + r * CELL;   // 논리 Y (빈 칸 슬롯용)
       const pad = 3;
 
       // Empty slot
       ctx.fillStyle = 'rgba(255,255,255,0.03)';
-      rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 6);
+      rRect(x + pad, ly + pad, CELL - pad*2, CELL - pad*2, 6);
       ctx.fill();
 
       const blk = grid[r][c];
@@ -588,6 +623,14 @@ function drawGrid() {
       const bc = BCOLOR[blk.color];
       const bd = BDARK[blk.color];
       const bl = BRIGHT[blk.color];
+      const chained = (csz[blk.chainId] || 0) >= 2;
+
+      // 낙하 애니메이션 Y + 체인 bob
+      const atRest = blk.animY === null || blk.animY >= ly - 0.5;
+      const bobY   = (chained && atRest)
+        ? Math.sin(now / 700 + blk.chainId * 0.9) * 1.8
+        : 0;
+      const y = (blk.animY !== null ? blk.animY : ly) + bobY;
 
       // Block body
       ctx.fillStyle = bc;
@@ -604,14 +647,14 @@ function drawGrid() {
       rRect(x + pad, y + CELL - pad - 6, CELL - pad*2, 6, [0, 0, 8, 8]);
       ctx.fill();
 
-      // Chain border (if connected chain)
-      if ((csz[blk.chainId] || 0) >= 2) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      // Chain border — pulse 효과
+      if (chained) {
+        const pulse = 0.3 + 0.18 * Math.sin(now / 380 + blk.chainId * 1.1);
+        ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
         ctx.lineWidth = 2;
         rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
         ctx.stroke();
 
-        // Small chain count badge (top-right)
         const cnt = csz[blk.chainId];
         if (cnt >= 3) {
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -667,6 +710,19 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawRipples() {
+  ripples = ripples.filter(r => r.life > 0);
+  for (const rpl of ripples) {
+    rpl.rad  += 2.8 * slowFactor;
+    rpl.life -= 0.06 * slowFactor;
+    ctx.strokeStyle = `rgba(255,255,255,${Math.max(0, rpl.life) * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(rpl.x, rpl.y, rpl.rad, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function drawPopups() {
   popups = popups.filter(p => p.life > 0);
   for (const p of popups) {
@@ -695,6 +751,7 @@ function loop(ts) {
   lastTS = ts;
 
   updateChar(dt);
+  updateBlockAnims(dt);
   render(dt);
   rafID = requestAnimationFrame(loop);
 }
@@ -743,7 +800,7 @@ function startGame() {
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0;
   slowFactor = 1.0; lastTS = 0; locked = false;
-  particles = []; popups = [];
+  particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
 
   initGrid();
