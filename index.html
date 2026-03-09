@@ -413,6 +413,7 @@ function startEat(r, c) {
     char.hp--;
     char.state = 'stunned';
     shake(6, 18);
+    haptic([15, 5, 15]);
     popup(char.x, char.y - 44, 'OW!', '#ff5555');
     setTimeout(() => {
       goBase();
@@ -476,6 +477,7 @@ function runChain(chainBlocks, sr, sc) {
     sBlocks++;
     sGold += 10;
     shake(2, 3);  // 블록 팝마다 약한 진동
+    haptic(8);
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
 
     // wave 피해 블록 수집만 (아직 제거 안 함)
@@ -497,9 +499,11 @@ function finishChain(combo) {
 
   if (combo >= 10) {
     shake(12, 28);
+    haptic([30, 10, 50]);
     bigPopup('CHOMP!!', '#ff4444');
   } else if (combo >= 5) {
     shake(5, 14);
+    haptic([20, 10, 30]);
     bigPopup('COMBO!', '#f0c040');
   }
 
@@ -553,6 +557,7 @@ function startTimer() {
 //  EFFECTS
 // ═══════════════════════════════════════
 function shake(amt, fr) { shakeAmt = amt; shakeFr = fr; }
+function haptic(ms = 10) { navigator.vibrate?.(ms); }
 
 function popup(x, y, text, color, big) {
   popups.push({ x, y, text, color, life: 1.2, vy: -1.0, big: !!big });
