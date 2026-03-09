@@ -759,9 +759,19 @@ function loop(ts) {
 // ═══════════════════════════════════════
 //  INPUT
 // ═══════════════════════════════════════
+function blocksFalling() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const blk = grid[r][c];
+      if (blk && blk.animY !== null && blk.animY < GY + r * CELL - 0.5) return true;
+    }
+  return false;
+}
+
 function handleTap(cx, cy) {
   if (gstate !== 'playing') return;
   if (char.state !== 'idle' || locked) return;
+  if (blocksFalling()) return;  // 낙하 중엔 탭 무시
 
   const rect   = canvas.getBoundingClientRect();
   const scaleX = AW / rect.width;
