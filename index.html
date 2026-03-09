@@ -76,6 +76,7 @@
     <div class="stats-box">
       <div class="stat-row"><span>⚡ 최고 연쇄</span><b id="m-hs">0콤보</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
+      <div class="stat-row"><span>🧪 재료</span><b id="m-mats" style="font-size:13px">—</b></div>
     </div>
     <div style="width:100%">
       <div style="color:#505070;font-size:12px;margin-bottom:7px;text-align:center">색상 수 (많을수록 어려움)</div>
@@ -100,6 +101,10 @@
       <div class="res-row"><span>⚡ 최대 연쇄</span><b><span id="r-combo">0</span>콤보</b></div>
       <div class="res-row"><span>💰 획득 골드</span><b><span id="r-gold">0</span> G</b></div>
       <div class="res-row"><span>🏆 최고 기록</span><b><span id="r-best">0</span>콤보</b></div>
+      <div class="res-row" id="r-mats-row" style="display:none">
+        <span>🧪 획득 재료</span>
+        <b><span id="r-mats"></span></b>
+      </div>
     </div>
     <button class="btn btn-p" onclick="startGame()">🔄 다시 하기</button>
     <button class="btn btn-s" onclick="showMain()">🏠 메인으로</button>
@@ -167,7 +172,18 @@ const SPR = {};
   }
 })();
 
-const SK = { gold: 'cc_gold', hs: 'cc_hs' };
+const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats' };
+
+const DEFAULT_MATS = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
+const getMats = () => Object.assign({}, DEFAULT_MATS, JSON.parse(localStorage.getItem(SK.mats) || '{}'));
+const saveMats = v => localStorage.setItem(SK.mats, JSON.stringify(v));
+
+function addMats(gained) {
+  const cur = getMats();
+  for (const k of Object.keys(DEFAULT_MATS)) cur[k] = (cur[k] || 0) + (gained[k] || 0);
+  saveMats(cur);
+  return cur;
+}
 
 // ═══════════════════════════════════════
 //  STATE
@@ -181,6 +197,7 @@ let char    = {};
 
 let timeLeft = SESSION, timerID = null;
 let sGold = 0, sBlocks = 0, sMaxCombo = 0;
+let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 
@@ -221,6 +238,12 @@ function showMain() {
   stopGame();
   document.getElementById('m-hs').textContent   = getHS() + '콤보';
   document.getElementById('m-gold').textContent = getGold() + ' G';
+
+  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+  const mats = getMats();
+  const parts = Object.entries(mats).filter(([, v]) => v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
+  document.getElementById('m-mats').textContent = parts.length ? parts.join(' ') : '—';
+
   showScreen('ms');
   setColors(colorCount);
 }
@@ -278,7 +301,9 @@ function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
 
 function removeBlock(r, c) {
   if (!grid[r][c]) return;
-  burstParticles(r, c, BCOLOR[grid[r][c].color]);
+  const color = grid[r][c].color;
+  burstParticles(r, c, BCOLOR[color]);
+  if (sDestroyed[color] !== undefined) sDestroyed[color]++;
   grid[r][c] = null;
 }
 
@@ -497,7 +522,12 @@ function finishChain(combo) {
   if (combo > sMaxCombo) sMaxCombo = combo;
   if (combo >= 5) sGold += combo * 5;
 
-  if (combo >= 10) {
+  if (combo >= 20) {
+    shake(18, 40);
+    haptic([50, 15, 80, 15, 50]);
+    bigPopup('LEGENDARY!!', '#c084fc');
+    burstStar(AW / 2, AH / 2 - 40);
+  } else if (combo >= 10) {
     shake(12, 28);
     haptic([30, 10, 50]);
     bigPopup('CHOMP!!', '#ff4444');
@@ -564,6 +594,16 @@ function popup(x, y, text, color, big) {
 }
 function bigPopup(text, color) {
   popups.push({ x: AW / 2, y: AH / 2 - 70, text, color, life: 1.8, vy: -0.4, big: true });
+}
+
+function burstStar(x, y) {
+  const colors = ['#c084fc', '#f0c040', '#ff4444', '#7ec850', '#3498db'];
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2 + Math.random() * 0.4;
+    const spd = 3 + Math.random() * 5;
+    particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                     r: 4 + Math.random() * 4, color: colors[i % colors.length], life: 1.4 });
+  }
 }
 
 function burstParticles(r, c, color) {
@@ -861,6 +901,7 @@ function startGame() {
   stopGame();
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0;
+  sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
@@ -873,7 +914,7 @@ function startGame() {
 }
 
 function showResult() {
-  const earned  = Math.max(10, sBlocks * 10);
+  const earned  = Math.max(10, sGold);
   const newGold = getGold() + earned;
   const newBest = Math.max(getHS(), sMaxCombo);
   saveGold(newGold);
@@ -882,6 +923,27 @@ function showResult() {
   document.getElementById('r-blk').textContent   = sBlocks;
   document.getElementById('r-combo').textContent  = sMaxCombo;
   document.getElementById('r-best').textContent   = newBest;
+
+  // 재료 정산 (블록 5개당 1개)
+  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+  const gainedMats = {};
+  for (const [color, cnt] of Object.entries(sDestroyed)) {
+    const g = Math.floor(cnt / 5);
+    if (g > 0) gainedMats[color] = g;
+  }
+  addMats(gainedMats);
+
+  const matParts = [];
+  for (const [color, cnt] of Object.entries(gainedMats)) {
+    if (cnt > 0) matParts.push(`${COLOR_ICON[color]}+${cnt}`);
+  }
+  const matsRow = document.getElementById('r-mats-row');
+  if (matParts.length > 0) {
+    document.getElementById('r-mats').textContent = matParts.join('  ');
+    matsRow.style.display = 'flex';
+  } else {
+    matsRow.style.display = 'none';
+  }
 
   // Animate gold
   let d = 0;
