@@ -217,7 +217,7 @@ function showMain() {
 //  GRID
 // ═══════════════════════════════════════
 function mkBlock(color) {
-  return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1 };
+  return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1, animY: null, fallV: 0 };
 }
 
 function initGrid() {
@@ -271,6 +271,12 @@ function removeBlock(r, c) {
 }
 
 function gravity() {
+  // 현재 시각 Y 고정 (이동 전에 저장)
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && grid[r][c].animY === null)
+        grid[r][c].animY = GY + r * CELL;
+
   for (let c = 0; c < COLS; c++) {
     let empty = ROWS - 1;
     for (let r = ROWS - 1; r >= 0; r--) {
@@ -280,9 +286,31 @@ function gravity() {
         empty--;
       }
     }
-    for (let r = empty; r >= 0; r--) grid[r][c] = mkBlock();
+    // 새 블록은 그리드 위에서 낙하 시작
+    let spawnY = GY - CELL;
+    for (let r = empty; r >= 0; r--) {
+      const blk = mkBlock();
+      blk.animY = spawnY;
+      spawnY -= CELL;
+      grid[r][c] = blk;
+    }
   }
   buildChains();
+}
+
+function updateBlockAnims(dt) {
+  const spd = dt / 16.67;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const blk = grid[r][c];
+      if (!blk) continue;
+      const targetY = GY + r * CELL;
+      if (blk.animY === null) { blk.animY = targetY; continue; }
+      if (blk.animY >= targetY - 0.5) { blk.animY = targetY; blk.fallV = 0; continue; }
+      blk.fallV += 0.65 * spd;
+      blk.animY = Math.min(targetY, blk.animY + blk.fallV * spd);
+    }
+  }
 }
 
 // ═══════════════════════════════════════
@@ -571,20 +599,22 @@ function drawHUD() {
 }
 
 function drawGrid() {
-  // Chain size map
   const csz = {};
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
       if (grid[r][c]) { const id = grid[r][c].chainId; csz[id] = (csz[id]||0) + 1; }
 
+  const now = Date.now();
+
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const x = GX + c * CELL, y = GY + r * CELL;
+      const x  = GX + c * CELL;
+      const ly = GY + r * CELL;   // 논리 Y (빈 칸 슬롯용)
       const pad = 3;
 
       // Empty slot
       ctx.fillStyle = 'rgba(255,255,255,0.03)';
-      rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 6);
+      rRect(x + pad, ly + pad, CELL - pad*2, CELL - pad*2, 6);
       ctx.fill();
 
       const blk = grid[r][c];
@@ -593,6 +623,14 @@ function drawGrid() {
       const bc = BCOLOR[blk.color];
       const bd = BDARK[blk.color];
       const bl = BRIGHT[blk.color];
+      const chained = (csz[blk.chainId] || 0) >= 2;
+
+      // 낙하 애니메이션 Y + 체인 bob
+      const atRest = blk.animY === null || blk.animY >= ly - 0.5;
+      const bobY   = (chained && atRest)
+        ? Math.sin(now / 700 + blk.chainId * 0.9) * 1.8
+        : 0;
+      const y = (blk.animY !== null ? blk.animY : ly) + bobY;
 
       // Block body
       ctx.fillStyle = bc;
@@ -609,14 +647,14 @@ function drawGrid() {
       rRect(x + pad, y + CELL - pad - 6, CELL - pad*2, 6, [0, 0, 8, 8]);
       ctx.fill();
 
-      // Chain border (if connected chain)
-      if ((csz[blk.chainId] || 0) >= 2) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      // Chain border — pulse 효과
+      if (chained) {
+        const pulse = 0.3 + 0.18 * Math.sin(now / 380 + blk.chainId * 1.1);
+        ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
         ctx.lineWidth = 2;
         rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
         ctx.stroke();
 
-        // Small chain count badge (top-right)
         const cnt = csz[blk.chainId];
         if (cnt >= 3) {
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -713,6 +751,7 @@ function loop(ts) {
   lastTS = ts;
 
   updateChar(dt);
+  updateBlockAnims(dt);
   render(dt);
   rafID = requestAnimationFrame(loop);
 }
