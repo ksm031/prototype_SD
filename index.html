@@ -77,6 +77,14 @@
       <div class="stat-row"><span>⚡ 최고 연쇄</span><b id="m-hs">0콤보</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
     </div>
+    <div style="width:100%">
+      <div style="color:#505070;font-size:12px;margin-bottom:7px;text-align:center">색상 수 (많을수록 어려움)</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s col-btn" id="col-3" onclick="setColors(3)" style="flex:1;padding:10px;font-size:13px">🟥🟦🟨<br><span style="font-size:11px">3색 쉬움</span></button>
+        <button class="btn btn-s col-btn" id="col-4" onclick="setColors(4)" style="flex:1;padding:10px;font-size:13px">🟥🟦🟨🟩<br><span style="font-size:11px">4색 보통</span></button>
+        <button class="btn btn-s col-btn" id="col-5" onclick="setColors(5)" style="flex:1;padding:10px;font-size:13px">🟥🟦🟨🟩🟪<br><span style="font-size:11px">5색 어려움</span></button>
+      </div>
+    </div>
     <button class="btn btn-p" onclick="startGame()">🎮 플레이</button>
     <button class="btn btn-s" onclick="alert('P1 구현 예정')">👾 캐릭터</button>
   </div>
@@ -122,10 +130,24 @@ window.addEventListener('resize', resizeApp);
 const COLS = 5, ROWS = 6, CELL = 56;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 58;                         // grid offset Y
-const COLORS = ['red', 'blue', 'yellow'];
-const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f' };
-const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a' };
-const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f' };
+const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de' };
+
+let colorCount = 4;
+let COLORS = ALL_COLORS.slice(0, colorCount);
+
+function setColors(n) {
+  colorCount = n;
+  COLORS = ALL_COLORS.slice(0, n);
+  document.querySelectorAll('.col-btn').forEach(b => {
+    b.style.borderColor = '';
+    b.style.color = '';
+  });
+  const sel = document.getElementById('col-' + n);
+  if (sel) { sel.style.borderColor = '#f0c040'; sel.style.color = '#f0c040'; }
+}
 
 const BASE_X   = AW / 2;
 const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
@@ -187,6 +209,7 @@ function showMain() {
   document.getElementById('m-hs').textContent   = getHS() + '콤보';
   document.getElementById('m-gold').textContent = getGold() + ' G';
   showScreen('ms');
+  setColors(colorCount);
 }
 
 // ═══════════════════════════════════════
@@ -383,19 +406,9 @@ function wave(row, col) {
     if (!inB(nr, nc) || !grid[nr][nc]) continue;
     grid[nr][nc].hp--;
     if (grid[nr][nc].hp <= 0) {
-      const bonus = getChain(grid[nr][nc].chainId);
-      if (bonus.length > 1) {
-        const bx = GX + nc * CELL + CELL / 2;
-        const by = GY + nr * CELL;
-        setTimeout(() => {
-          popup(bx, by - 8, 'BONUS!', '#ff9f40');
-          runChain(bonus, nr, nc);
-        }, 300);
-      } else {
-        removeBlock(nr, nc);
-        sBlocks++;
-        sGold += 10;
-      }
+      removeBlock(nr, nc);
+      sBlocks++;
+      sGold += 10;
     }
   }
 }
