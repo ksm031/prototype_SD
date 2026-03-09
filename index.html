@@ -152,7 +152,7 @@ function setColors(n) {
 const BASE_X   = AW / 2;
 const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
 const CHAR_SPD = 10;       // px per frame (at 60fps)
-const CHAIN_MS = 140;      // ms between block pops
+const CHAIN_MS = 70;       // ms between block pops
 const SESSION  = 90;
 
 const SK = { gold: 'cc_gold', hs: 'cc_hs' };
@@ -406,43 +406,48 @@ function byDist(blocks, sr, sc) {
 
 function runChain(chainBlocks, sr, sc) {
   const ordered = byDist(chainBlocks, sr, sc);
+  // 체인 블록 위치 집합 (wave 피해 수집 시 제외용)
+  const chainSet = new Set(chainBlocks.map(b => b.r * COLS + b.c));
+  const waveMap  = new Map(); // key → {r,c}  wave 피해 블록 수집
   let combo = 0;
   char.state = 'eating';
 
   const iv = setInterval(() => {
     if (!ordered.length) {
       clearInterval(iv);
+      // Phase 3: 체인 주변 인접 블록 한꺼번에 처리
+      for (const { r, c } of waveMap.values()) {
+        if (!grid[r][c]) continue;
+        ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: 4, life: 0.8 });
+        removeBlock(r, c);
+        combo++;
+        sBlocks++;
+        sGold += 10;
+      }
       finishChain(combo);
       return;
     }
+
+    // Phase 1 & 2: 선택 블록 → 도미노 확산
     const { r, c } = ordered.shift();
     if (!grid[r][c]) return;
     removeBlock(r, c);
     combo++;
     sBlocks++;
     sGold += 10;
-    // 충격파 링 이펙트
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
-    wave(r, c);
+
+    // wave 피해 블록 수집만 (아직 제거 안 함)
+    for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
+      if (!inB(nr, nc) || !grid[nr][nc]) continue;
+      const key = nr * COLS + nc;
+      if (!chainSet.has(key)) waveMap.set(key, { r: nr, c: nc });
+    }
+
     if (combo >= 5) {
-      const bx = GX + c * CELL + CELL / 2;
-      const by = GY + r * CELL;
-      popup(bx, by - 8, combo + '!', '#f0c040');
+      popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, combo + '!', '#f0c040');
     }
   }, CHAIN_MS);
-}
-
-function wave(row, col) {
-  for (const [nr, nc] of [[row-1,col],[row+1,col],[row,col-1],[row,col+1]]) {
-    if (!inB(nr, nc) || !grid[nr][nc]) continue;
-    grid[nr][nc].hp--;
-    if (grid[nr][nc].hp <= 0) {
-      ripples.push({ x: GX + nc * CELL + CELL / 2, y: GY + nr * CELL + CELL / 2, rad: 4, life: 0.8 });
-      removeBlock(nr, nc);
-      sBlocks++;
-      sGold += 10;
-    }
-  }
 }
 
 function finishChain(combo) {
