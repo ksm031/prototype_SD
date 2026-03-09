@@ -475,6 +475,7 @@ function runChain(chainBlocks, sr, sc) {
     combo++;
     sBlocks++;
     sGold += 10;
+    shake(2, 3);  // 블록 팝마다 약한 진동
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
 
     // wave 피해 블록 수집만 (아직 제거 안 함)
