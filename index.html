@@ -3,716 +3,770 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>STACK DUNGEON</title>
+  <title>CHOMP CHAIN</title>
   <style>
     *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0; padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
+      margin: 0; padding: 0; box-sizing: border-box;
+      user-select: none; -webkit-tap-highlight-color: transparent;
     }
-
     html, body {
-      width: 100%; height: 100%;
-      overflow: hidden;
-      background: #0d0d1a;
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0a0a14;
+      display: flex; justify-content: center; align-items: flex-start;
       font-family: 'Segoe UI', system-ui, sans-serif;
     }
-
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
-
-    /* ── APP SHELL ── */
     #app {
-      /* height set by JS using window.innerHeight */
-      width: 360px;
-      max-width: 100vw;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      background: #1a1a2e;
-    }
-
-    /* ── SCREENS ── */
-    .screen {
+      width: 360px; height: 640px;
       position: absolute;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      background: #1a1a2e;
+      transform-origin: top left;
+      overflow: hidden;
+    }
+    /* ── screens ── */
+    .screen {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #1a1a2e; gap: 18px; padding: 32px 22px;
     }
     .screen.active { display: flex; }
-
-    /* ── MAIN ── */
-    #main-screen {
-      justify-content: center;
-      gap: 18px;
-      padding: 32px 22px;
+    /* ── canvas (game) ── */
+    #gc { display: none; position: absolute; inset: 0; }
+    /* ── main screen ── */
+    .title {
+      font-size: 34px; font-weight: 900; color: #f0c040;
+      text-shadow: 0 0 20px rgba(240,192,64,.55);
+      letter-spacing: 2px; text-align: center;
     }
-
-    .main-title {
-      font-size: 30px;
-      font-weight: 900;
-      color: #e8c56d;
-      text-shadow: 0 0 20px rgba(232,197,109,.55);
-      letter-spacing: 2px;
-      text-align: center;
-    }
-    .main-sub {
-      font-size: 12px;
-      color: #5a5a7a;
-      text-align: center;
-      margin-top: -10px;
-    }
-
+    .sub { font-size: 12px; color: #505070; text-align: center; margin-top: -10px; }
     .stats-box {
-      width: 100%;
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 12px;
-      padding: 16px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      width: 100%; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 13px;
+      padding: 16px 22px; display: flex; flex-direction: column; gap: 9px;
     }
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #a0a0c0;
-      font-size: 14px;
-    }
-    .stat-row b { color: #e8c56d; font-size: 16px; }
-
+    .stat-row { display: flex; justify-content: space-between; color: #9090b0; font-size: 14px; }
+    .stat-row b { color: #f0c040; }
     .btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
       transition: transform .1s, opacity .1s;
     }
     .btn:active { transform: scale(.96); opacity: .85; }
-    .btn-primary  { background: linear-gradient(135deg, #e8c56d, #c8992e); color: #1a1a2e; }
-    .btn-secondary {
+    .btn-p { background: linear-gradient(135deg, #f0c040, #c88820); color: #1a1a2e; }
+    .btn-s {
       background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      color: #6666aa;
-      font-size: 13px;
+      border: 1px solid rgba(255,255,255,.1); color: #6868a0; font-size: 14px;
     }
-
-    /* ── HUD ── */
-    #hud {
-      width: 100%;
-      height: 46px;
-      flex-shrink: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 14px;
-      background: rgba(0,0,0,.4);
+    /* ── result screen ── */
+    .res-box {
+      width: 100%; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 13px;
+      padding: 18px 22px; display: flex; flex-direction: column; gap: 11px;
     }
-    #hud-timer  { color: #e8c56d; font-size: 15px; font-weight: 700; }
-    #hud-timer.urgent { color: #ff5555; animation: blink .45s infinite; }
-    @keyframes blink { 50% { opacity: .25; } }
-    #hud-height { color: #d0d0f0; font-size: 13px; font-weight: 600; }
-    #hud-gold   { color: #e8c56d; font-size: 13px; font-weight: 600; }
-
-    /* ── CANVAS ZONE ── */
-    #canvas-zone {
-      /* width/height set by JS */
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
-    }
-    #game-canvas    { display: block; }
-    #particle-canvas {
-      position: absolute; top: 0; left: 0;
-      pointer-events: none; z-index: 4;
-    }
-
-    #collapse-overlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(255,30,30,.18);
-      opacity: 0; pointer-events: none;
-      z-index: 8; transition: opacity .15s;
-    }
-    #collapse-overlay.show { opacity: 1; animation: shake .45s; }
-    @keyframes shake {
-      0%,100%{ transform:translateX(0) }
-      15%,55%,85%{ transform:translateX(-7px) }
-      35%,70%{ transform:translateX(7px) }
-    }
-    #collapse-label {
-      font-size: 34px; font-weight: 900;
-      color: #ff4444;
-      text-shadow: 0 0 20px rgba(255,68,68,.8);
-      letter-spacing: 3px;
-    }
-
-    /* ── CONTROLS ── */
-    #controls {
-      /* height set by JS (CTRL_H) */
-      width: 100%;
-      flex-shrink: 0;
-      background: rgba(0,0,0,.3);
-      padding: 6px 9px 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    .ctrl-label {
-      font-size: 10px; color: #484868;
-      text-transform: uppercase; letter-spacing: 1px;
-      text-align: center;
-    }
-
-    #pos-btns { display: flex; gap: 6px; }
-    .pos-btn {
-      flex: 1; padding: 8px 4px;
-      background: rgba(255,255,255,.04);
-      border: 1.5px solid rgba(255,255,255,.11);
-      border-radius: 8px;
-      color: #8888aa; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all .15s; text-align: center;
-    }
-    .pos-btn.selected, .pos-btn:active {
-      background: rgba(232,197,109,.18);
-      border-color: #e8c56d; color: #e8c56d;
-    }
-
-    #card-btns { display: flex; gap: 6px; flex: 1; }
-    .card-btn {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 2px; padding: 5px 2px;
-      background: rgba(255,255,255,.04);
-      border: 1.5px solid rgba(255,255,255,.11);
-      border-radius: 10px; color: #d0d0f0;
-      cursor: pointer; transition: all .15s;
-    }
-    .card-btn .c-emoji { font-size: 24px; line-height: 1; }
-    .card-btn .c-name  { font-size: 10px; color: #8888aa; }
-    .card-btn .c-grade { font-size: 9px; padding: 1px 5px; border-radius: 4px; }
-    .card-btn.normal .c-grade { background: rgba(70,70,200,.3); color: #9999ff; }
-    .card-btn.rare   .c-grade { background: rgba(200,140,30,.3); color: #e8c56d; }
-    .card-btn.selected, .card-btn:active {
-      border-color: #e8c56d;
-      background: rgba(232,197,109,.14);
-      transform: translateY(-2px);
-    }
-
-    #drop-btn {
-      padding: 9px;
-      border: none; border-radius: 9px;
-      background: linear-gradient(135deg, #e8c56d, #c8992e);
-      color: #1a1a2e; font-size: 14px; font-weight: 800;
-      cursor: pointer; letter-spacing: 1px;
-      transition: transform .1s, opacity .1s;
-      flex-shrink: 0;
-    }
-    #drop-btn:active { transform: scale(.96); }
-    #drop-btn:disabled {
-      background: rgba(255,255,255,.07); color: #484848;
-      cursor: not-allowed; transform: none;
-    }
-
-    /* ── RESULT ── */
-    #result-screen {
-      justify-content: center; gap: 16px; padding: 32px 22px;
-    }
-    .result-title {
-      font-size: 28px; font-weight: 900;
-      color: #e8c56d;
-      text-shadow: 0 0 18px rgba(232,197,109,.5);
-      text-align: center;
-    }
-    .result-box {
-      width: 100%;
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 12px;
-      padding: 18px 24px;
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .result-row {
-      display: flex; justify-content: space-between; align-items: center;
-      color: #9090b8; font-size: 14px;
-    }
-    .result-row b { color: #e8c56d; font-size: 19px; }
-
-    @keyframes popIn {
-      0%   { transform: scale(.5); opacity: 0; }
-      70%  { transform: scale(1.15); }
-      100% { transform: scale(1);   opacity: 1; }
-    }
-    .pop { animation: popIn .3s ease; }
+    .res-row { display: flex; justify-content: space-between; color: #9090b0; font-size: 14px; }
+    .res-row b { color: #f0c040; font-size: 17px; }
   </style>
 </head>
 <body>
 <div id="app">
 
   <!-- MAIN -->
-  <div id="main-screen" class="screen active">
-    <div class="main-title">⚔️ STACK DUNGEON</div>
-    <div class="main-sub">몬스터를 쌓아 던전을 정복하라!</div>
+  <div id="ms" class="screen active">
+    <div class="title">CHOMP CHAIN</div>
+    <div class="sub">블록을 탭해 캐릭터를 먹여라!</div>
     <div class="stats-box">
-      <div class="stat-row"><span>🏆 최고 기록</span><b id="main-hs">0층</b></div>
-      <div class="stat-row"><span>💰 보유 골드</span><b id="main-gold">0</b></div>
+      <div class="stat-row"><span>⚡ 최고 연쇄</span><b id="m-hs">0콤보</b></div>
+      <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
     </div>
-    <button class="btn btn-primary"   onclick="startGame()">⚔️ 던전 입장</button>
-    <button class="btn btn-secondary" onclick="alert('덱 관리는 P1 구현 예정!')">📦 덱 관리 (준비 중)</button>
+    <button class="btn btn-p" onclick="startGame()">🎮 플레이</button>
+    <button class="btn btn-s" onclick="alert('P1 구현 예정')">👾 캐릭터</button>
   </div>
 
   <!-- GAME -->
-  <div id="game-screen" class="screen">
-    <div id="hud">
-      <div id="hud-timer">⏱ 1:30</div>
-      <div id="hud-height">높이: 0층</div>
-      <div id="hud-gold">0 G</div>
-    </div>
-
-    <div id="canvas-zone">
-      <canvas id="game-canvas"></canvas>
-      <canvas id="particle-canvas"></canvas>
-      <div id="collapse-overlay">
-        <div id="collapse-label">COLLAPSED!</div>
-      </div>
-    </div>
-
-    <div id="controls">
-      <div class="ctrl-label">착지 위치</div>
-      <div id="pos-btns">
-        <button class="pos-btn" data-pos="left"   onclick="selectPos('left')">◀ 좌</button>
-        <button class="pos-btn" data-pos="center" onclick="selectPos('center')">● 중</button>
-        <button class="pos-btn" data-pos="right"  onclick="selectPos('right')">▶ 우</button>
-      </div>
-      <div class="ctrl-label">카드 선택</div>
-      <div id="card-btns"></div>
-      <button id="drop-btn" onclick="onDrop()" disabled>⬇ 낙하!</button>
-    </div>
-  </div>
+  <canvas id="gc" width="360" height="640"></canvas>
 
   <!-- RESULT -->
-  <div id="result-screen" class="screen">
-    <div class="result-title" id="result-title">세션 종료!</div>
-    <div class="result-box">
-      <div class="result-row"><span>📐 최종 높이</span><b><span id="res-h">0</span>층</b></div>
-      <div class="result-row"><span>💰 획득 골드</span><b id="res-gold">0</b></div>
-      <div class="result-row"><span>🏆 최고 기록</span><b><span id="res-best">0</span>층</b></div>
+  <div id="rs" class="screen">
+    <div class="title" id="r-title" style="font-size:26px">세션 종료!</div>
+    <div class="res-box">
+      <div class="res-row"><span>💥 소멸 블록</span><b><span id="r-blk">0</span>개</b></div>
+      <div class="res-row"><span>⚡ 최대 연쇄</span><b><span id="r-combo">0</span>콤보</b></div>
+      <div class="res-row"><span>💰 획득 골드</span><b><span id="r-gold">0</span> G</b></div>
+      <div class="res-row"><span>🏆 최고 기록</span><b><span id="r-best">0</span>콤보</b></div>
     </div>
-    <button class="btn btn-primary"   onclick="startGame()">🔄 다시 하기</button>
-    <button class="btn btn-secondary" onclick="showMain()">🏠 메인으로</button>
+    <button class="btn btn-p" onclick="startGame()">🔄 다시 하기</button>
+    <button class="btn btn-s" onclick="showMain()">🏠 메인으로</button>
   </div>
 
 </div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script>
-// ═══════════════════════════════
-//  LAYOUT  (computed once per game-start)
-// ═══════════════════════════════
-const HUD_H  = 46;
-const CTRL_H = 158;   // controls panel fixed height
-const CW     = 360;   // canvas width
-
-let CH       = 400;   // canvas height — set by resizeApp()
-let FLOOR_CY, FLOOR_TOP;
-const FLOOR_W = 340;
-const FLOOR_H = 18;
-const LAYER_H = 42;
+// ═══════════════════════════════════════
+//  RESIZE / SCALE
+// ═══════════════════════════════════════
+const AW = 360, AH = 640;
 
 function resizeApp() {
-  const appH = window.innerHeight;
-  const app  = document.getElementById('app');
-  app.style.height = appH + 'px';
-
-  CH        = appH - HUD_H - CTRL_H;
-  FLOOR_CY  = CH - 27;
-  FLOOR_TOP = FLOOR_CY - FLOOR_H / 2;
-
-  const zone = document.getElementById('canvas-zone');
-  zone.style.width  = CW + 'px';
-  zone.style.height = CH + 'px';
-
-  const gc = document.getElementById('game-canvas');
-  gc.width  = CW;  gc.height = CH;
-
-  const pc = document.getElementById('particle-canvas');
-  pc.width  = CW;  pc.height = CH;
+  const scale = Math.min(window.innerWidth / AW, window.innerHeight / AH);
+  const app = document.getElementById('app');
+  const left = (window.innerWidth  - AW * scale) / 2;
+  const top  = (window.innerHeight - AH * scale) / 2;
+  app.style.transform = `scale(${scale})`;
+  app.style.left = Math.max(0, left) + 'px';
+  app.style.top  = Math.max(0, top)  + 'px';
 }
-
-// Run once immediately and on resize
 resizeApp();
-window.addEventListener('resize', () => { resizeApp(); });
+window.addEventListener('resize', resizeApp);
 
-// ═══════════════════════════════
-//  CONSTANTS
-// ═══════════════════════════════
-const SESSION_SEC  = 90;
-const LAND_X       = { left: 90, center: 180, right: 270 };
-const VEL_THRESH   = 0.5;
-const STABLE_FRAMES = 45;
+// ═══════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════
+const COLS = 5, ROWS = 6, CELL = 56;
+const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
+const GY = 58;                         // grid offset Y
+const COLORS = ['red', 'blue', 'yellow'];
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f' };
 
-const SK = { gold: 'sd_gold', hs: 'sd_hs', deck: 'sd_deck' };
-const DEFAULT_DECK = ['slime','slime','skeleton','jelly','dragon_baby'];
+const BASE_X   = AW / 2;
+const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
+const CHAR_SPD = 10;       // px per frame (at 60fps)
+const CHAIN_MS = 140;      // ms between block pops
+const SESSION  = 90;
 
-const MONSTERS = {
-  slime:       { id:'slime',       name:'슬라임',     grade:'normal', shape:'circle', radius:22,    density:.002, friction:.8,  restitution:.3,  color:'#7ec850', emoji:'🟢', special:null },
-  skeleton:    { id:'skeleton',    name:'해골',       grade:'normal', shape:'rect',   w:28, h:50,   density:.001, friction:.3,  restitution:.1,  color:'#e0e0c8', emoji:'💀', special:null },
-  jelly:       { id:'jelly',       name:'젤리',       grade:'rare',   shape:'circle', radius:26,    density:.003, friction:.9,  restitution:.85, color:'#ff6eb4', emoji:'💗', special:{ type:'bounce' } },
-  dragon_baby: { id:'dragon_baby', name:'아기 드래곤', grade:'rare',   shape:'rect',   w:46, h:40,   density:.005, friction:.6,  restitution:.1,  color:'#ff4444', emoji:'🐉', special:{ type:'wind', interval:2500, range:100, force:.022 } },
-  wizard:      { id:'wizard',      name:'마법사',     grade:'rare',   shape:'rect',   w:26, h:56,   density:.001, friction:.15, restitution:.05, color:'#9b59b6', emoji:'🧙', special:null },
-};
+const SK = { gold: 'cc_gold', hs: 'cc_hs' };
 
-// ═══════════════════════════════
+// ═══════════════════════════════════════
 //  STATE
-// ═══════════════════════════════
-let engine, render, runner;
-let gamePhase = 'idle';
-let timeLeft  = SESSION_SEC;
-let timerID   = null;
-let monsterBodies = [];
-let dragonTimers  = [];
-let deck = [], deckIdx = 0, hand = [];
-let selCard = null, selPos = null;
-let curHeight = 0;
-let particles = [], pRAF = null;
+// ═══════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
 
-// ═══════════════════════════════
+let gstate  = 'idle';  // idle | playing | over
+let grid    = [];
+let char    = {};
+
+let timeLeft = SESSION, timerID = null;
+let sGold = 0, sBlocks = 0, sMaxCombo = 0;
+let slowFactor = 1.0, lastTS = 0, rafID = null;
+let locked = false;  // input lock during chain
+
+// Visual fx
+let shakeFr = 0, shakeAmt = 0;
+let popups    = [];  // { x,y,text,color,life,vy,big }
+let particles = [];  // { x,y,vx,vy,r,color,life }
+
+// ═══════════════════════════════════════
 //  STORAGE
-// ═══════════════════════════════
-const getGold = () => +( localStorage.getItem(SK.gold) || 0);
-const getHS   = () => +( localStorage.getItem(SK.hs)   || 0);
+// ═══════════════════════════════════════
+const getGold = () => +(localStorage.getItem(SK.gold) || 0);
+const getHS   = () => +(localStorage.getItem(SK.hs)   || 0);
 const saveGold = v => localStorage.setItem(SK.gold, v);
 const saveHS   = v => localStorage.setItem(SK.hs,   v);
 
-// ═══════════════════════════════
-//  SCREENS
-// ═══════════════════════════════
+// ═══════════════════════════════════════
+//  SCREEN
+// ═══════════════════════════════════════
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  ['ms','rs'].forEach(s => {
+    const el = document.getElementById(s);
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
+  canvas.style.display = 'none';
+  if (id === 'gc') {
+    canvas.style.display = 'block';
+  } else {
+    const el = document.getElementById(id);
+    el.style.display = 'flex';
+    el.classList.add('active');
+  }
 }
 
 function showMain() {
-  document.getElementById('main-hs').textContent   = getHS() + '층';
-  document.getElementById('main-gold').textContent = getGold() + ' G';
-  showScreen('main-screen');
+  stopGame();
+  document.getElementById('m-hs').textContent   = getHS() + '콤보';
+  document.getElementById('m-gold').textContent = getGold() + ' G';
+  showScreen('ms');
 }
 
-// ═══════════════════════════════
-//  PARTICLES
-// ═══════════════════════════════
-const pCanvas = document.getElementById('particle-canvas');
-const pCtx    = pCanvas.getContext('2d');
-
-function spawnParticles(x, y, color) {
-  for (let i = 0; i < 6; i++) {
-    particles.push({ x, y,
-      vx: (Math.random() - .5) * 5,
-      vy: -Math.random() * 4 - 1,
-      life: 1, r: Math.random() * 3 + 2, color });
-  }
+// ═══════════════════════════════════════
+//  GRID
+// ═══════════════════════════════════════
+function mkBlock(color) {
+  return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1 };
 }
 
-function tickParticles() {
-  pCtx.clearRect(0, 0, CW, CH);
-  particles = particles.filter(p => p.life > 0);
-  for (const p of particles) {
-    p.x += p.vx; p.y += p.vy; p.vy += .18; p.life -= .04;
-    pCtx.globalAlpha = p.life;
-    pCtx.fillStyle = p.color;
-    pCtx.beginPath(); pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2); pCtx.fill();
-  }
-  pCtx.globalAlpha = 1;
-  pRAF = requestAnimationFrame(tickParticles);
+function initGrid() {
+  grid = Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => mkBlock())
+  );
+  buildChains();
 }
 
-// ═══════════════════════════════
-//  PHYSICS
-// ═══════════════════════════════
-function initPhysics() {
-  if (engine) {
-    Matter.Runner.stop(runner);
-    Matter.Render.stop(render);
-    Matter.World.clear(engine.world);
-    Matter.Engine.clear(engine);
-  }
-
-  engine = Matter.Engine.create();
-  engine.gravity.y = 1.5;
-
-  render = Matter.Render.create({
-    canvas : document.getElementById('game-canvas'),
-    engine,
-    options: { width: CW, height: CH, wireframes: false, background: '#1a1a2e' },
-  });
-
-  runner = Matter.Runner.create();
-  Matter.Runner.run(runner, engine);
-  Matter.Render.run(render);
-
-  const floor = Matter.Bodies.rectangle(CW / 2, FLOOR_CY, FLOOR_W, FLOOR_H, {
-    isStatic: true, label: 'floor', render: { fillStyle: '#4a4a8a' }
-  });
-  const wallL = Matter.Bodies.rectangle(-10, CH / 2, 20, CH, { isStatic: true, label: 'wall', render: { fillStyle: 'transparent' } });
-  const wallR = Matter.Bodies.rectangle(CW + 10, CH / 2, 20, CH, { isStatic: true, label: 'wall', render: { fillStyle: 'transparent' } });
-  Matter.Composite.add(engine.world, [floor, wallL, wallR]);
-
-  Matter.Events.on(engine, 'collisionStart', ev => {
-    for (const { bodyA, bodyB } of ev.pairs) {
-      const isFloor = bodyA.label === 'floor' || bodyB.label === 'floor';
-      if (!isFloor) continue;
-      const mon = bodyA.label === 'floor' ? bodyB : bodyA;
-      if (mon.label !== 'monster') continue;
-      spawnParticles(mon.position.x, FLOOR_TOP, MONSTERS[mon.mId]?.color || '#fff');
-    }
-  });
-}
-
-// ═══════════════════════════════
-//  DECK & HAND
-// ═══════════════════════════════
-function buildDeck() {
-  const saved = localStorage.getItem(SK.deck);
-  deck = saved ? JSON.parse(saved) : [...DEFAULT_DECK];
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  deckIdx = 0;
-}
-
-function dealHand() {
-  hand = [];
-  for (let i = 0; i < 3; i++) hand.push(deck[(deckIdx + i) % deck.length]);
-  deckIdx = (deckIdx + 3) % deck.length;
-  renderHand();
-}
-
-function renderHand() {
-  const c = document.getElementById('card-btns');
-  c.innerHTML = '';
-  hand.forEach((mId, i) => {
-    const m  = MONSTERS[mId];
-    const el = document.createElement('button');
-    el.className = `card-btn ${m.grade}`;
-    el.innerHTML = `<span class="c-emoji">${m.emoji}</span>
-                    <span class="c-name">${m.name}</span>
-                    <span class="c-grade">${m.grade === 'rare' ? '레어' : '일반'}</span>`;
-    el.onclick = () => selectCard(i);
-    c.appendChild(el);
-  });
-}
-
-function selectCard(i) {
-  selCard = i;
-  document.querySelectorAll('.card-btn').forEach((b, j) => b.classList.toggle('selected', j === i));
-  refreshDropBtn();
-}
-
-function selectPos(pos) {
-  selPos = pos;
-  document.querySelectorAll('.pos-btn').forEach(b => b.classList.toggle('selected', b.dataset.pos === pos));
-  refreshDropBtn();
-}
-
-function refreshDropBtn() {
-  document.getElementById('drop-btn').disabled =
-    !(selCard !== null && selPos !== null && gamePhase === 'waiting');
-}
-
-// ═══════════════════════════════
-//  HEIGHT
-// ═══════════════════════════════
-function calcHeight() {
-  if (!monsterBodies.length) return 0;
-  let topY = FLOOR_TOP;
-  for (const b of monsterBodies) {
-    if (b.bounds.min.y < topY) topY = b.bounds.min.y;
-  }
-  return Math.max(0, Math.floor((FLOOR_TOP - topY) / LAYER_H));
-}
-
-// ═══════════════════════════════
-//  DROP
-// ═══════════════════════════════
-function onDrop() {
-  if (gamePhase !== 'waiting' || selCard === null || selPos === null) return;
-
-  const mId = hand[selCard];
-  const m   = MONSTERS[mId];
-  const x   = LAND_X[selPos];
-
-  const opts = {
-    density: m.density, friction: m.friction, restitution: m.restitution,
-    label: 'monster', render: { fillStyle: m.color }
-  };
-  let body;
-  if (m.shape === 'circle') {
-    body = Matter.Bodies.circle(x, 0, m.radius, opts);
-  } else {
-    body = Matter.Bodies.rectangle(x, 0, m.w, m.h, opts);
-    Matter.Body.setAngle(body, (Math.random() - .5) * .3);
-  }
-  body.mId = mId;
-  Matter.Composite.add(engine.world, body);
-  monsterBodies.push(body);
-  gamePhase = 'dropping';
-  refreshDropBtn();
-
-  // Dragon wind
-  if (m.special?.type === 'wind') {
-    const tid = setInterval(() => {
-      for (const b of monsterBodies) {
-        if (b === body) continue;
-        if (Math.hypot(b.position.x - body.position.x, b.position.y - body.position.y) < m.special.range) {
-          Matter.Body.applyForce(b, b.position, { x: (Math.random() - .5) * m.special.force, y: 0 });
-        }
+function buildChains() {
+  const vis = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  let id = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!vis[r][c] && grid[r][c]) {
+        bfs(r, c, id++, vis);
       }
-    }, m.special.interval);
-    dragonTimers.push(tid);
-  }
-
-  // Stabilization loop
-  let stableCount = 0;
-  const COLLAPSE_Y = CH + 60;
-
-  const check = () => {
-    if (gamePhase === 'idle') return;
-    for (const b of monsterBodies) {
-      if (b.position.y > COLLAPSE_Y) { triggerCollapse(); return; }
     }
-    const allStill = monsterBodies.every(b => Math.hypot(b.velocity.x, b.velocity.y) < VEL_THRESH);
-    if (allStill) { if (++stableCount >= STABLE_FRAMES) { onStable(); return; } }
-    else stableCount = 0;
-    requestAnimationFrame(check);
-  };
-  requestAnimationFrame(check);
+  }
 }
 
-function onStable() {
-  if (gamePhase !== 'dropping') return;
-  gamePhase = 'waiting';
+function bfs(sr, sc, id, vis) {
+  const color = grid[sr][sc].color;
+  const q = [[sr, sc]];
+  while (q.length) {
+    const [r, c] = q.shift();
+    if (vis[r][c]) continue;
+    vis[r][c] = true;
+    grid[r][c].chainId = id;
+    for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
+      if (inB(nr, nc) && !vis[nr][nc] && grid[nr][nc]?.color === color)
+        q.push([nr, nc]);
+    }
+  }
+}
 
-  // Jelly bounce
-  if (MONSTERS[hand[selCard]]?.special?.type === 'bounce') {
-    const last = monsterBodies[monsterBodies.length - 1];
-    monsterBodies.forEach(b => {
-      if (b !== last) Matter.Body.applyForce(b, b.position, { x: 0, y: -.06 });
-    });
+function getChain(id) {
+  const res = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c]?.chainId === id) res.push({ r, c });
+  return res;
+}
+
+function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+
+function removeBlock(r, c) {
+  if (!grid[r][c]) return;
+  burstParticles(r, c, BCOLOR[grid[r][c].color]);
+  grid[r][c] = null;
+}
+
+function gravity() {
+  for (let c = 0; c < COLS; c++) {
+    let empty = ROWS - 1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (grid[r][c]) {
+        grid[empty][c] = grid[r][c];
+        if (empty !== r) grid[r][c] = null;
+        empty--;
+      }
+    }
+    for (let r = empty; r >= 0; r--) grid[r][c] = mkBlock();
+  }
+  buildChains();
+}
+
+// ═══════════════════════════════════════
+//  CHARACTER
+// ═══════════════════════════════════════
+function initChar() {
+  char = {
+    x: BASE_X, y: BASE_Y,
+    tx: BASE_X, ty: BASE_Y,
+    state: 'idle',   // idle|moving|eating|stunned|returning
+    hp: 3,
+    emoji: '👾',
+    tr: -1, tc: -1,
+    sc: 1.0,          // scale anim
+  };
+}
+
+function goBase() {
+  char.tx = BASE_X;
+  char.ty = BASE_Y;
+  char.state = 'returning';
+}
+
+function updateChar(dt) {
+  if (char.sc > 1.0) char.sc = Math.max(1.0, char.sc - 0.05);
+  const s = char.state;
+  if (s === 'idle' || s === 'eating' || s === 'stunned') return;
+
+  const dx = char.tx - char.x;
+  const dy = char.ty - char.y;
+  const d  = Math.sqrt(dx * dx + dy * dy);
+  const spd = CHAR_SPD * (dt / 16.67);
+
+  if (d < spd) {
+    char.x = char.tx; char.y = char.ty;
+    if (s === 'moving') {
+      char.state = 'eating';
+      startEat(char.tr, char.tc);
+    } else if (s === 'returning') {
+      char.state = 'idle';
+      locked = false;
+    }
+  } else {
+    char.x += (dx / d) * spd;
+    char.y += (dy / d) * spd;
+  }
+}
+
+// ═══════════════════════════════════════
+//  EAT & CHAIN
+// ═══════════════════════════════════════
+function startEat(r, c) {
+  char.sc = 1.5;
+  const block = grid[r][c];
+
+  if (!block) {
+    // Empty cell hit
+    char.hp--;
+    char.emoji = '😵';
+    char.state = 'stunned';
+    shake(6, 18);
+    popup(char.x, char.y - 44, 'OW!', '#ff5555');
+    setTimeout(() => {
+      char.emoji = '👾';
+      goBase();
+      checkOver();
+    }, 750);
+    return;
   }
 
-  curHeight = calcHeight();
-  const hEl = document.getElementById('hud-height');
-  hEl.textContent = `높이: ${curHeight}층`;
-  hEl.classList.remove('pop'); void hEl.offsetWidth; hEl.classList.add('pop');
+  const chain = getChain(block.chainId);
 
-  selCard = null; selPos = null;
-  document.querySelectorAll('.card-btn, .pos-btn').forEach(b => b.classList.remove('selected'));
-  dealHand();
-  refreshDropBtn();
+  if (chain.length === 1) {
+    // Lonely block — penalty
+    char.hp--;
+    removeBlock(r, c);
+    sBlocks++;
+    sGold += 10;
+    popup(char.x, char.y - 44, '…', '#888899');
+    char.state = 'returning';
+    setTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
+    return;
+  }
+
+  runChain(chain, r, c);
 }
 
-// ═══════════════════════════════
-//  COLLAPSE
-// ═══════════════════════════════
-function triggerCollapse() {
-  if (gamePhase === 'idle') return;
-  gamePhase = 'idle';
-  engine.timing.timeScale = 0.15;
-  document.getElementById('collapse-overlay').classList.add('show');
+function byDist(blocks, sr, sc) {
+  return [...blocks].sort((a, b) =>
+    (Math.abs(a.r - sr) + Math.abs(a.c - sc)) - (Math.abs(b.r - sr) + Math.abs(b.c - sc))
+  );
+}
+
+function runChain(chainBlocks, sr, sc) {
+  const ordered = byDist(chainBlocks, sr, sc);
+  let combo = 0;
+  char.state = 'eating';
+
+  const iv = setInterval(() => {
+    if (!ordered.length) {
+      clearInterval(iv);
+      finishChain(combo);
+      return;
+    }
+    const { r, c } = ordered.shift();
+    if (!grid[r][c]) return;
+    removeBlock(r, c);
+    combo++;
+    sBlocks++;
+    sGold += 10;
+    wave(r, c);
+    if (combo >= 5) {
+      const bx = GX + c * CELL + CELL / 2;
+      const by = GY + r * CELL;
+      popup(bx, by - 8, combo + '!', '#f0c040');
+    }
+  }, CHAIN_MS);
+}
+
+function wave(row, col) {
+  for (const [nr, nc] of [[row-1,col],[row+1,col],[row,col-1],[row,col+1]]) {
+    if (!inB(nr, nc) || !grid[nr][nc]) continue;
+    grid[nr][nc].hp--;
+    if (grid[nr][nc].hp <= 0) {
+      const bonus = getChain(grid[nr][nc].chainId);
+      if (bonus.length > 1) {
+        const bx = GX + nc * CELL + CELL / 2;
+        const by = GY + nr * CELL;
+        setTimeout(() => {
+          popup(bx, by - 8, 'BONUS!', '#ff9f40');
+          runChain(bonus, nr, nc);
+        }, 300);
+      } else {
+        removeBlock(nr, nc);
+        sBlocks++;
+        sGold += 10;
+      }
+    }
+  }
+}
+
+function finishChain(combo) {
+  if (combo > sMaxCombo) sMaxCombo = combo;
+  if (combo >= 5) sGold += combo * 5;
+
+  if (combo >= 10) {
+    shake(12, 28);
+    bigPopup('CHOMP!!', '#ff4444');
+  } else if (combo >= 5) {
+    shake(5, 14);
+    bigPopup('COMBO!', '#f0c040');
+  }
+
+  setTimeout(() => {
+    gravity();
+    char.emoji = '👾';
+    goBase();
+    checkOver();
+  }, 200);
+}
+
+// ═══════════════════════════════════════
+//  GAME OVER
+// ═══════════════════════════════════════
+function checkOver() {
+  if (gstate !== 'playing') return;
+  if (char.hp <= 0) { endGame('hp'); return; }
+  if (grid.flat().every(b => !b)) endGame('clear');
+}
+
+function endGame(reason) {
+  if (gstate !== 'playing') return;
+  gstate = 'over';
   clearInterval(timerID);
-  dragonTimers.forEach(clearInterval); dragonTimers = [];
-  setTimeout(() => { engine.timing.timeScale = 1; endSession(false); }, 2200);
+
+  if (reason === 'clear') {
+    sGold += 100;
+    bigPopup('PERFECT!!', '#7ec850');
+  } else if (reason === 'hp') {
+    char.emoji = '💥';
+    shake(14, 30);
+  }
+  slowFactor = 0.2;
+  setTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
 }
 
-// ═══════════════════════════════
+// ═══════════════════════════════════════
 //  TIMER
-// ═══════════════════════════════
+// ═══════════════════════════════════════
 function startTimer() {
-  timeLeft = SESSION_SEC;
-  renderTimer();
+  timeLeft = SESSION;
   timerID = setInterval(() => {
+    if (slowFactor < 1.0) return;
     timeLeft--;
-    renderTimer();
-    if (timeLeft <= 10) document.getElementById('hud-timer').classList.add('urgent');
-    if (timeLeft <= 0)  { clearInterval(timerID); if (gamePhase !== 'idle') endSession(true); }
+    if (timeLeft <= 0) {
+      clearInterval(timerID);
+      if (gstate === 'playing') endGame('time');
+    }
   }, 1000);
 }
 
-function renderTimer() {
-  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
-  document.getElementById('hud-timer').textContent = `⏱ ${m}:${String(s).padStart(2,'0')}`;
+// ═══════════════════════════════════════
+//  EFFECTS
+// ═══════════════════════════════════════
+function shake(amt, fr) { shakeAmt = amt; shakeFr = fr; }
+
+function popup(x, y, text, color, big) {
+  popups.push({ x, y, text, color, life: 1.2, vy: -1.0, big: !!big });
+}
+function bigPopup(text, color) {
+  popups.push({ x: AW / 2, y: AH / 2 - 70, text, color, life: 1.8, vy: -0.4, big: true });
 }
 
-// ═══════════════════════════════
-//  SESSION END
-// ═══════════════════════════════
-function endSession(timesUp) {
-  gamePhase = 'idle';
-  clearInterval(timerID);
-  dragonTimers.forEach(clearInterval); dragonTimers = [];
-  if (runner) Matter.Runner.stop(runner);
-  if (render) Matter.Render.stop(render);
-  cancelAnimationFrame(pRAF);
+function burstParticles(r, c, color) {
+  const x = GX + c * CELL + CELL / 2;
+  const y = GY + r * CELL + CELL / 2;
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const spd = 2 + Math.random() * 3.5;
+    particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                     r: 3 + Math.random() * 3, color, life: 1.0 });
+  }
+}
 
-  const finalH = calcHeight();
-  const earned = Math.max(10, finalH * 10);
-  saveGold(getGold() + earned);
-  const newBest = Math.max(getHS(), finalH);
+// ═══════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════
+function rRect(x, y, w, h, rad) {
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.lineTo(x + w - rad, y);
+  ctx.arcTo(x + w, y, x + w, y + rad, rad);
+  ctx.lineTo(x + w, y + h - rad);
+  ctx.arcTo(x + w, y + h, x + w - rad, y + h, rad);
+  ctx.lineTo(x + rad, y + h);
+  ctx.arcTo(x, y + h, x, y + h - rad, rad);
+  ctx.lineTo(x, y + rad);
+  ctx.arcTo(x, y, x + rad, y, rad);
+  ctx.closePath();
+}
+
+function render(dt) {
+  // Shake offset
+  let ox = 0, oy = 0;
+  if (shakeFr > 0) {
+    ox = (Math.random() - 0.5) * shakeAmt;
+    oy = (Math.random() - 0.5) * shakeAmt;
+    shakeFr--;
+  }
+
+  ctx.save();
+  ctx.translate(ox, oy);
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(-20, -20, AW + 40, AH + 40);
+
+  drawGrid();
+  drawChar();
+  drawParticles();
+  drawHUD();
+  drawPopups();
+
+  ctx.restore();
+}
+
+function drawHUD() {
+  // BG
+  ctx.fillStyle = 'rgba(10,10,22,0.8)';
+  ctx.fillRect(0, 0, AW, 52);
+
+  // Timer
+  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+  ctx.fillStyle = timeLeft <= 10 ? '#ff5555' : '#f0c040';
+  ctx.font = 'bold 16px system-ui';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`⏱ ${m}:${String(s).padStart(2, '0')}`, 12, 28);
+
+  // HP hearts
+  ctx.font = '15px serif';
+  ctx.textAlign = 'center';
+  let hp = '';
+  for (let i = 0; i < 3; i++) hp += i < char.hp ? '❤️' : '🖤';
+  ctx.fillText(hp, AW / 2, 28);
+
+  // Gold
+  ctx.fillStyle = '#f0c040';
+  ctx.font = 'bold 15px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText(sGold + ' G', AW - 12, 28);
+}
+
+function drawGrid() {
+  // Chain size map
+  const csz = {};
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c]) { const id = grid[r][c].chainId; csz[id] = (csz[id]||0) + 1; }
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = GX + c * CELL, y = GY + r * CELL;
+      const pad = 3;
+
+      // Empty slot
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 6);
+      ctx.fill();
+
+      const blk = grid[r][c];
+      if (!blk) continue;
+
+      const bc = BCOLOR[blk.color];
+      const bd = BDARK[blk.color];
+      const bl = BRIGHT[blk.color];
+
+      // Block body
+      ctx.fillStyle = bc;
+      rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
+      ctx.fill();
+
+      // Top shine
+      ctx.fillStyle = bl;
+      rRect(x + pad, y + pad, CELL - pad*2, 7, [8, 8, 0, 0]);
+      ctx.fill();
+
+      // Bottom shadow
+      ctx.fillStyle = bd;
+      rRect(x + pad, y + CELL - pad - 6, CELL - pad*2, 6, [0, 0, 8, 8]);
+      ctx.fill();
+
+      // Chain border (if connected chain)
+      if ((csz[blk.chainId] || 0) >= 2) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.lineWidth = 2;
+        rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
+        ctx.stroke();
+
+        // Small chain count badge (top-right)
+        const cnt = csz[blk.chainId];
+        if (cnt >= 3) {
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.beginPath();
+          ctx.arc(x + CELL - pad - 2, y + pad + 2, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 9px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(cnt, x + CELL - pad - 2, y + pad + 2.5);
+        }
+      }
+    }
+  }
+}
+
+function drawChar() {
+  const s = char.sc;
+  ctx.save();
+  ctx.translate(char.x, char.y);
+  ctx.scale(s, s);
+  ctx.font = '38px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(char.emoji, 0, 0);
+
+  // Stun stars
+  if (char.state === 'stunned') {
+    const t = Date.now() / 180;
+    ctx.font = '13px serif';
+    for (let i = 0; i < 3; i++) {
+      const a = t + (i / 3) * Math.PI * 2;
+      ctx.fillText('⭐', Math.cos(a) * 26, Math.sin(a) * 16 - 30);
+    }
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    p.x  += p.vx * slowFactor;
+    p.y  += p.vy * slowFactor;
+    p.vy += 0.18 * slowFactor;
+    p.life -= 0.04 * slowFactor;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPopups() {
+  popups = popups.filter(p => p.life > 0);
+  for (const p of popups) {
+    p.y    += p.vy * slowFactor;
+    p.life -= 0.028 * slowFactor;
+    ctx.globalAlpha = Math.min(1, p.life);
+    ctx.font = p.big ? 'bold 40px system-ui' : 'bold 21px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth   = p.big ? 6 : 3;
+    ctx.strokeText(p.text, p.x, p.y);
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ═══════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════
+function loop(ts) {
+  if (gstate === 'idle') return;
+  const raw = ts - (lastTS || ts);
+  const dt  = raw * slowFactor;
+  lastTS = ts;
+
+  updateChar(dt);
+  render(dt);
+  rafID = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════
+function handleTap(cx, cy) {
+  if (gstate !== 'playing') return;
+  if (char.state !== 'idle' || locked) return;
+
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = AW / rect.width;
+  const scaleY = AH / rect.height;
+  const px = (cx - rect.left) * scaleX;
+  const py = (cy - rect.top)  * scaleY;
+
+  const col = Math.floor((px - GX) / CELL);
+  const row = Math.floor((py - GY) / CELL);
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+  char.tr = row; char.tc = col;
+  char.tx = GX + col * CELL + CELL / 2;
+  char.ty = GY + row * CELL + CELL / 2;
+  char.state = 'moving';
+  locked = true;
+}
+
+canvas.addEventListener('click', e => handleTap(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  handleTap(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+// ═══════════════════════════════════════
+//  START / STOP
+// ═══════════════════════════════════════
+function stopGame() {
+  cancelAnimationFrame(rafID);
+  clearInterval(timerID);
+  gstate = 'idle';
+}
+
+function startGame() {
+  stopGame();
+  gstate = 'playing';
+  sGold = 0; sBlocks = 0; sMaxCombo = 0;
+  slowFactor = 1.0; lastTS = 0; locked = false;
+  particles = []; popups = [];
+  shakeFr = 0; shakeAmt = 0;
+
+  initGrid();
+  initChar();
+  startTimer();
+  showScreen('gc');
+  rafID = requestAnimationFrame(loop);
+}
+
+function showResult() {
+  const earned  = Math.max(10, sBlocks * 10);
+  const newGold = getGold() + earned;
+  const newBest = Math.max(getHS(), sMaxCombo);
+  saveGold(newGold);
   saveHS(newBest);
 
-  document.getElementById('result-title').textContent = timesUp ? '⏰ 시간 종료!' : '💥 탑 붕괴!';
-  document.getElementById('res-h').textContent    = finalH;
-  document.getElementById('res-best').textContent = newBest;
+  document.getElementById('r-blk').textContent   = sBlocks;
+  document.getElementById('r-combo').textContent  = sMaxCombo;
+  document.getElementById('r-best').textContent   = newBest;
 
-  let disp = 0;
-  const goldEl = document.getElementById('res-gold');
-  const step   = Math.max(1, Math.ceil(earned / 40));
-  const anim   = setInterval(() => {
-    disp = Math.min(disp + step, earned);
-    goldEl.textContent = disp + ' G';
-    if (disp >= earned) clearInterval(anim);
+  // Animate gold
+  let d = 0;
+  const step = Math.max(1, Math.ceil(earned / 40));
+  const gel  = document.getElementById('r-gold');
+  const anim = setInterval(() => {
+    d = Math.min(d + step, earned);
+    gel.textContent = d;
+    if (d >= earned) clearInterval(anim);
   }, 40);
 
-  showScreen('result-screen');
+  showScreen('rs');
 }
 
-// ═══════════════════════════════
-//  START
-// ═══════════════════════════════
-function startGame() {
-  resizeApp();   // recalculate layout before physics init
-  gamePhase = 'waiting';
-  selCard = null; selPos = null;
-  monsterBodies = []; dragonTimers = [];
-  particles = []; curHeight = 0;
-
-  document.getElementById('hud-height').textContent = '높이: 0층';
-  document.getElementById('hud-gold').textContent   = '0 G';
-  document.getElementById('hud-timer').classList.remove('urgent');
-  document.getElementById('collapse-overlay').classList.remove('show');
-
-  showScreen('game-screen');
-  initPhysics();
-  buildDeck();
-  dealHand();
-  startTimer();
-  cancelAnimationFrame(pRAF);
-  tickParticles();
-}
-
-// ── BOOT ──
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
 showMain();
 </script>
 </body>
