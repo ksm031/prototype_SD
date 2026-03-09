@@ -56,6 +56,14 @@
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.1); color: #6868a0; font-size: 14px;
     }
+    /* ── shop ── */
+    .shop-tab {
+      padding: 10px; border: none; font-size: 14px; cursor: pointer;
+      background: rgba(255,255,255,.04); color: #606080; font-weight: 600;
+      transition: background .15s, color .15s;
+    }
+    .shop-tab-active { background: rgba(240,192,64,.15); color: #f0c040; }
+    #sh-upgrade { flex-direction: column; gap: 10px; }
     /* ── result screen ── */
     .res-box {
       width: 100%; background: rgba(255,255,255,.05);
@@ -76,6 +84,7 @@
     <div class="stats-box">
       <div class="stat-row"><span>⚡ 최고 연쇄</span><b id="m-hs">0콤보</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
+      <div class="stat-row"><span>🧪 재료</span><b id="m-mats" style="font-size:13px">—</b></div>
     </div>
     <div style="width:100%">
       <div style="color:#505070;font-size:12px;margin-bottom:7px;text-align:center">색상 수 (많을수록 어려움)</div>
@@ -86,7 +95,27 @@
       </div>
     </div>
     <button class="btn btn-p" onclick="startGame()">🎮 플레이</button>
-    <button class="btn btn-s" onclick="alert('P1 구현 예정')">👾 캐릭터</button>
+    <button class="btn btn-s" onclick="showShop()">⚗️ 강화</button>
+  </div>
+
+  <!-- SHOP -->
+  <div id="ss" class="screen" style="justify-content:flex-start;padding-top:18px;gap:10px">
+    <div class="title" style="font-size:22px">강화</div>
+    <div class="stats-box" style="padding:10px 16px;gap:4px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-weight:700;color:#f0c040;font-size:14px" id="sh-gold">0 G 🪙</span>
+      </div>
+      <div style="font-size:12px;color:#9090b0" id="sh-mats-line">재료 없음</div>
+    </div>
+    <div style="width:100%;display:flex;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1)">
+      <button id="tab-up"  onclick="shopTab('upgrade')" class="shop-tab shop-tab-active" style="flex:1">강화</button>
+      <button id="tab-dec" onclick="shopTab('deco')"    class="shop-tab"                 style="flex:1">꾸미기</button>
+    </div>
+    <div id="sh-upgrade" style="width:100%"></div>
+    <div id="sh-deco" style="display:none;width:100%;text-align:center;color:#505070;padding:30px 0;font-size:13px">
+      Lv.4 달성 시 꾸미기 해금됩니다
+    </div>
+    <button class="btn btn-s" onclick="showMain()" style="margin-top:auto">← 돌아가기</button>
   </div>
 
   <!-- GAME -->
@@ -100,6 +129,10 @@
       <div class="res-row"><span>⚡ 최대 연쇄</span><b><span id="r-combo">0</span>콤보</b></div>
       <div class="res-row"><span>💰 획득 골드</span><b><span id="r-gold">0</span> G</b></div>
       <div class="res-row"><span>🏆 최고 기록</span><b><span id="r-best">0</span>콤보</b></div>
+      <div class="res-row" id="r-mats-row" style="display:none">
+        <span>🧪 획득 재료</span>
+        <b><span id="r-mats"></span></b>
+      </div>
     </div>
     <button class="btn btn-p" onclick="startGame()">🔄 다시 하기</button>
     <button class="btn btn-s" onclick="showMain()">🏠 메인으로</button>
@@ -167,7 +200,39 @@ const SPR = {};
   }
 })();
 
-const SK = { gold: 'cc_gold', hs: 'cc_hs' };
+const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', chars: 'cc_chars' };
+
+// ── 캐릭터 스탯 ────────────────────────────
+const LEVEL_BONUS = {
+  1: { hpAdd: 0, impactAdd: 0, delayReduce: 0,  scale: 1.0 },
+  2: { hpAdd: 1, impactAdd: 0, delayReduce: 0,  scale: 1.0 },
+  3: { hpAdd: 2, impactAdd: 1, delayReduce: 5,  scale: 1.2 },
+  4: { hpAdd: 4, impactAdd: 1, delayReduce: 10, scale: 1.2 },
+  5: { hpAdd: 7, impactAdd: 2, delayReduce: 15, scale: 1.4 },
+};
+const UPGRADE_COST = {
+  1: { gold: 200,  anyMat: 10, mainMat: 0,  rare: 0  },
+  2: { gold: 500,  anyMat: 0,  mainMat: 20, rare: 0  },
+  3: { gold: 1200, anyMat: 0,  mainMat: 40, rare: 5  },
+  4: { gold: 3000, anyMat: 0,  mainMat: 80, rare: 15 },
+};
+function getCharLevel(id)      { return +(JSON.parse(localStorage.getItem(SK.chars)||'{}')[id]||1); }
+function saveCharLevel(id, lv) { const d=JSON.parse(localStorage.getItem(SK.chars)||'{}'); d[id]=lv; localStorage.setItem(SK.chars,JSON.stringify(d)); }
+function getCharacterStats(lv) {
+  const b = LEVEL_BONUS[lv];
+  return { hp: 3+b.hpAdd, impactRange: 1+b.impactAdd, chainDelay: Math.max(30, 50-b.delayReduce), scale: b.scale };
+}
+
+const DEFAULT_MATS = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
+const getMats = () => Object.assign({}, DEFAULT_MATS, JSON.parse(localStorage.getItem(SK.mats) || '{}'));
+const saveMats = v => localStorage.setItem(SK.mats, JSON.stringify(v));
+
+function addMats(gained) {
+  const cur = getMats();
+  for (const k of Object.keys(DEFAULT_MATS)) cur[k] = (cur[k] || 0) + (gained[k] || 0);
+  saveMats(cur);
+  return cur;
+}
 
 // ═══════════════════════════════════════
 //  STATE
@@ -181,6 +246,7 @@ let char    = {};
 
 let timeLeft = SESSION, timerID = null;
 let sGold = 0, sBlocks = 0, sMaxCombo = 0;
+let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 
@@ -202,7 +268,7 @@ const saveHS   = v => localStorage.setItem(SK.hs,   v);
 //  SCREEN
 // ═══════════════════════════════════════
 function showScreen(id) {
-  ['ms','rs'].forEach(s => {
+  ['ms','rs','ss'].forEach(s => {
     const el = document.getElementById(s);
     el.style.display = 'none';
     el.classList.remove('active');
@@ -221,6 +287,12 @@ function showMain() {
   stopGame();
   document.getElementById('m-hs').textContent   = getHS() + '콤보';
   document.getElementById('m-gold').textContent = getGold() + ' G';
+
+  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+  const mats = getMats();
+  const parts = Object.entries(mats).filter(([, v]) => v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
+  document.getElementById('m-mats').textContent = parts.length ? parts.join(' ') : '—';
+
   showScreen('ms');
   setColors(colorCount);
 }
@@ -278,7 +350,9 @@ function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
 
 function removeBlock(r, c) {
   if (!grid[r][c]) return;
-  burstParticles(r, c, BCOLOR[grid[r][c].color]);
+  const color = grid[r][c].color;
+  burstParticles(r, c, BCOLOR[color]);
+  if (sDestroyed[color] !== undefined) sDestroyed[color]++;
   grid[r][c] = null;
 }
 
@@ -329,13 +403,19 @@ function updateBlockAnims(dt) {
 //  CHARACTER
 // ═══════════════════════════════════════
 function initChar() {
+  const lv    = getCharLevel('chompy');
+  const stats = getCharacterStats(lv);
   char = {
     x: BASE_X, y: BASE_Y,
     tx: BASE_X, ty: BASE_Y,
-    state: 'idle',   // idle|moving|eating|stunned|returning|landing
-    hp: 3,
+    state: 'idle',
+    hp: stats.hp, maxHp: stats.hp,
+    impactRange: stats.impactRange,
+    chainDelay:  stats.chainDelay,
+    charScale:   stats.scale,
+    level: lv,
     tr: -1, tc: -1,
-    sc: 1.0,          // scale anim
+    sc: 1.0,
     sprFrame: 'idle_01',
     frameT: 0,
   };
@@ -413,6 +493,7 @@ function startEat(r, c) {
     char.hp--;
     char.state = 'stunned';
     shake(6, 18);
+    haptic([15, 5, 15]);
     popup(char.x, char.y - 44, 'OW!', '#ff5555');
     setTimeout(() => {
       goBase();
@@ -475,30 +556,42 @@ function runChain(chainBlocks, sr, sc) {
     combo++;
     sBlocks++;
     sGold += 10;
+    shake(2, 3);  // 블록 팝마다 약한 진동
+    haptic(8);
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
 
-    // wave 피해 블록 수집만 (아직 제거 안 함)
-    for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
-      if (!inB(nr, nc) || !grid[nr][nc]) continue;
-      const key = nr * COLS + nc;
-      if (!chainSet.has(key)) waveMap.set(key, { r: nr, c: nc });
+    // wave 피해 블록 수집 (impactRange 칸 범위)
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      for (let i = 1; i <= char.impactRange; i++) {
+        const nr = r + dr*i, nc = c + dc*i;
+        if (!inB(nr, nc) || !grid[nr][nc]) break;
+        const key = nr * COLS + nc;
+        if (!chainSet.has(key)) waveMap.set(key, { r: nr, c: nc });
+      }
     }
 
     if (combo >= 5) {
       popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, combo + '!', '#f0c040');
     }
-  }, CHAIN_MS);
+  }, char.chainDelay);
 }
 
 function finishChain(combo) {
   if (combo > sMaxCombo) sMaxCombo = combo;
   if (combo >= 5) sGold += combo * 5;
 
-  if (combo >= 10) {
+  if (combo >= 20) {
+    shake(18, 40);
+    haptic([50, 15, 80, 15, 50]);
+    bigPopup('LEGENDARY!!', '#c084fc');
+    burstStar(AW / 2, AH / 2 - 40);
+  } else if (combo >= 10) {
     shake(12, 28);
+    haptic([30, 10, 50]);
     bigPopup('CHOMP!!', '#ff4444');
   } else if (combo >= 5) {
     shake(5, 14);
+    haptic([20, 10, 30]);
     bigPopup('COMBO!', '#f0c040');
   }
 
@@ -552,12 +645,23 @@ function startTimer() {
 //  EFFECTS
 // ═══════════════════════════════════════
 function shake(amt, fr) { shakeAmt = amt; shakeFr = fr; }
+function haptic(ms = 10) { navigator.vibrate?.(ms); }
 
 function popup(x, y, text, color, big) {
   popups.push({ x, y, text, color, life: 1.2, vy: -1.0, big: !!big });
 }
 function bigPopup(text, color) {
   popups.push({ x: AW / 2, y: AH / 2 - 70, text, color, life: 1.8, vy: -0.4, big: true });
+}
+
+function burstStar(x, y) {
+  const colors = ['#c084fc', '#f0c040', '#ff4444', '#7ec850', '#3498db'];
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2 + Math.random() * 0.4;
+    const spd = 3 + Math.random() * 5;
+    particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                     r: 4 + Math.random() * 4, color: colors[i % colors.length], life: 1.4 });
+  }
 }
 
 function burstParticles(r, c, color) {
@@ -631,7 +735,7 @@ function drawHUD() {
   ctx.font = '15px serif';
   ctx.textAlign = 'center';
   let hp = '';
-  for (let i = 0; i < 3; i++) hp += i < char.hp ? '❤️' : '🖤';
+  for (let i = 0; i < char.maxHp; i++) hp += i < char.hp ? '❤️' : '🖤';
   ctx.fillText(hp, AW / 2, 28);
 
   // Gold
@@ -719,7 +823,7 @@ function drawChar() {
   const img = SPR[char.sprFrame];
   if (!img || !img.complete) return;
 
-  const SIZE = 56; // 캔버스상 표시 크기
+  const SIZE = 56 * (char.charScale || 1.0);
   const sc = char.sc;
   ctx.save();
   ctx.translate(char.x, char.y);
@@ -855,6 +959,7 @@ function startGame() {
   stopGame();
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0;
+  sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
@@ -867,7 +972,7 @@ function startGame() {
 }
 
 function showResult() {
-  const earned  = Math.max(10, sBlocks * 10);
+  const earned  = Math.max(10, sGold);
   const newGold = getGold() + earned;
   const newBest = Math.max(getHS(), sMaxCombo);
   saveGold(newGold);
@@ -876,6 +981,27 @@ function showResult() {
   document.getElementById('r-blk').textContent   = sBlocks;
   document.getElementById('r-combo').textContent  = sMaxCombo;
   document.getElementById('r-best').textContent   = newBest;
+
+  // 재료 정산 (블록 5개당 1개)
+  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+  const gainedMats = {};
+  for (const [color, cnt] of Object.entries(sDestroyed)) {
+    const g = Math.floor(cnt / 5);
+    if (g > 0) gainedMats[color] = g;
+  }
+  addMats(gainedMats);
+
+  const matParts = [];
+  for (const [color, cnt] of Object.entries(gainedMats)) {
+    if (cnt > 0) matParts.push(`${COLOR_ICON[color]}+${cnt}`);
+  }
+  const matsRow = document.getElementById('r-mats-row');
+  if (matParts.length > 0) {
+    document.getElementById('r-mats').textContent = matParts.join('  ');
+    matsRow.style.display = 'flex';
+  } else {
+    matsRow.style.display = 'none';
+  }
 
   // Animate gold
   let d = 0;
@@ -888,6 +1014,128 @@ function showResult() {
   }, 40);
 
   showScreen('rs');
+}
+
+// ═══════════════════════════════════════
+//  SHOP / UPGRADE
+// ═══════════════════════════════════════
+const CICON = { red:'🔴', blue:'🔵', yellow:'🟡', green:'🟢', purple:'🟣' };
+
+function canUpgrade() {
+  const lv = getCharLevel('chompy');
+  if (lv >= 5) return { ok: false, reason: '최대 레벨' };
+  const cost = UPGRADE_COST[lv];
+  const gold = getGold(), mats = getMats();
+  if (gold < cost.gold) return { ok: false, reason: `골드 부족 (${cost.gold - gold}G)` };
+  if (cost.anyMat > 0) {
+    const tot = mats.red + mats.blue + mats.yellow + mats.green + mats.purple;
+    if (tot < cost.anyMat) return { ok: false, reason: `재료 부족 (${cost.anyMat - tot}개)` };
+  }
+  if (cost.mainMat > 0 && mats.yellow < cost.mainMat)
+    return { ok: false, reason: `🟡 부족 (${cost.mainMat - mats.yellow}개)` };
+  if (cost.rare > 0 && mats.rare < cost.rare)
+    return { ok: false, reason: `⭐ 부족 (${cost.rare - mats.rare}개)` };
+  return { ok: true };
+}
+
+function doUpgrade() {
+  const check = canUpgrade();
+  if (!check.ok) return;
+  const lv   = getCharLevel('chompy');
+  const cost = UPGRADE_COST[lv];
+  const mats = getMats();
+  saveGold(getGold() - cost.gold);
+  if (cost.anyMat > 0) {
+    let need = cost.anyMat;
+    for (const k of ['red','blue','yellow','green','purple']) {
+      const take = Math.min(need, mats[k]||0);
+      mats[k] -= take; need -= take;
+      if (!need) break;
+    }
+  }
+  if (cost.mainMat > 0) mats.yellow -= cost.mainMat;
+  if (cost.rare  > 0)   mats.rare   -= cost.rare;
+  saveMats(mats);
+  saveCharLevel('chompy', lv + 1);
+  renderUpgradeTab();
+}
+
+function shopTab(tab) {
+  document.getElementById('sh-upgrade').style.display = tab === 'upgrade' ? 'flex' : 'none';
+  document.getElementById('sh-deco').style.display    = tab === 'deco'    ? 'block' : 'none';
+  document.getElementById('tab-up').classList.toggle('shop-tab-active',  tab === 'upgrade');
+  document.getElementById('tab-dec').classList.toggle('shop-tab-active', tab === 'deco');
+}
+
+function renderUpgradeTab() {
+  const lv   = getCharLevel('chompy');
+  const gold = getGold(), mats = getMats();
+  const cur  = getCharacterStats(lv);
+
+  document.getElementById('sh-gold').textContent = gold.toLocaleString() + ' G 🪙';
+  const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${CICON[k]}${v}`).join(' ');
+  document.getElementById('sh-mats-line').textContent = (matStr||'재료 없음') + (mats.rare>0 ? '  ⭐'+mats.rare : '');
+
+  const el = document.getElementById('sh-upgrade');
+  if (lv >= 5) {
+    el.innerHTML = `<div style="text-align:center;padding:24px 0">
+      <div style="font-size:52px">👾</div>
+      <div style="color:#f0c040;font-weight:700;font-size:18px;margin-top:8px">먹깨비 Lv.5 MAX</div>
+      <div style="color:#505070;font-size:13px;margin-top:6px">모든 강화 완료!</div></div>`;
+    return;
+  }
+
+  const nlv  = lv + 1;
+  const next = getCharacterStats(nlv);
+  const cost = UPGRADE_COST[lv];
+  const chk  = canUpgrade();
+
+  // 스탯 변화
+  const diffs = [];
+  if (next.hp !== cur.hp) diffs.push(`체력 ${cur.hp} → <b style="color:#7ec850">${next.hp}</b>`);
+  if (next.impactRange !== cur.impactRange) diffs.push(`충격파 ${cur.impactRange} → <b style="color:#7ec850">${next.impactRange}칸</b>`);
+  if (next.chainDelay  !== cur.chainDelay)  diffs.push(`연쇄 속도 ${cur.chainDelay} → <b style="color:#7ec850">${next.chainDelay}ms</b>`);
+  if (next.scale !== cur.scale) diffs.push(`크기 × <b style="color:#7ec850">${next.scale}</b>`);
+
+  // 필요 조건
+  function req(label, have, need) {
+    const ok = have >= need;
+    return `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px">
+      <span style="color:#9090b0">${label}</span>
+      <span style="color:${ok?'#7ec850':'#ff5555'}">${ok?'✅':'❌'} ${have}/${need}</span></div>`;
+  }
+  let reqHtml = req(`💰 골드`, gold, cost.gold);
+  if (cost.anyMat > 0) {
+    const tot = mats.red+mats.blue+mats.yellow+mats.green+mats.purple;
+    reqHtml += req('🧪 아무 재료', tot, cost.anyMat);
+  }
+  if (cost.mainMat > 0) reqHtml += req('🟡 순수 조각', mats.yellow, cost.mainMat);
+  if (cost.rare    > 0) reqHtml += req('⭐ 공명 조각', mats.rare,   cost.rare);
+
+  el.innerHTML = `
+    <div style="text-align:center;padding:8px 0">
+      <div style="font-size:44px">👾</div>
+      <div style="color:#f0c040;font-weight:700;font-size:16px;margin-top:4px">먹깨비 Lv.${lv}</div>
+    </div>
+    <div class="stats-box" style="padding:11px 15px;gap:5px">
+      <div style="color:#9090b0;font-size:11px;margin-bottom:2px">Lv.${nlv} 달성 시 변화</div>
+      ${diffs.length ? diffs.map(d=>`<div style="font-size:13px;color:#ccc">${d}</div>`).join('') : '<div style="font-size:13px;color:#606080">외형 변화만</div>'}
+    </div>
+    <div class="stats-box" style="padding:11px 15px;gap:2px">
+      <div style="color:#9090b0;font-size:11px;margin-bottom:4px">필요 조건</div>
+      ${reqHtml}
+    </div>
+    <button class="btn ${chk.ok?'btn-p':'btn-s'}" onclick="doUpgrade()"
+      ${chk.ok?'':'style="opacity:.5;cursor:not-allowed"'}>
+      ${chk.ok ? `Lv.${nlv}로 강화!` : chk.reason}
+    </button>`;
+}
+
+function showShop() {
+  stopGame();
+  showScreen('ss');
+  shopTab('upgrade');
+  renderUpgradeTab();
 }
 
 // ═══════════════════════════════════════
