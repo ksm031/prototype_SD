@@ -176,6 +176,7 @@ let locked = false;  // input lock during chain
 let shakeFr = 0, shakeAmt = 0;
 let popups    = [];  // { x,y,text,color,life,vy,big }
 let particles = [];  // { x,y,vx,vy,r,color,life }
+let ripples   = [];  // { x,y,rad,life } — wave 시각화
 
 // ═══════════════════════════════════════
 //  STORAGE
@@ -392,6 +393,8 @@ function runChain(chainBlocks, sr, sc) {
     combo++;
     sBlocks++;
     sGold += 10;
+    // 충격파 링 이펙트
+    ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
     wave(r, c);
     if (combo >= 5) {
       const bx = GX + c * CELL + CELL / 2;
@@ -406,6 +409,7 @@ function wave(row, col) {
     if (!inB(nr, nc) || !grid[nr][nc]) continue;
     grid[nr][nc].hp--;
     if (grid[nr][nc].hp <= 0) {
+      ripples.push({ x: GX + nc * CELL + CELL / 2, y: GY + nr * CELL + CELL / 2, rad: 4, life: 0.8 });
       removeBlock(nr, nc);
       sBlocks++;
       sGold += 10;
@@ -530,6 +534,7 @@ function render(dt) {
   ctx.fillRect(-20, -20, AW + 40, AH + 40);
 
   drawGrid();
+  drawRipples();
   drawChar();
   drawParticles();
   drawHUD();
@@ -667,6 +672,19 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawRipples() {
+  ripples = ripples.filter(r => r.life > 0);
+  for (const rpl of ripples) {
+    rpl.rad  += 2.8 * slowFactor;
+    rpl.life -= 0.06 * slowFactor;
+    ctx.strokeStyle = `rgba(255,255,255,${Math.max(0, rpl.life) * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(rpl.x, rpl.y, rpl.rad, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function drawPopups() {
   popups = popups.filter(p => p.life > 0);
   for (const p of popups) {
@@ -743,7 +761,7 @@ function startGame() {
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0;
   slowFactor = 1.0; lastTS = 0; locked = false;
-  particles = []; popups = [];
+  particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
 
   initGrid();
