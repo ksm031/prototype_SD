@@ -185,9 +185,9 @@ const COLS = 6, ROWS = 7, CELL = 50;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 64;                         // grid offset Y
 const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
-const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#7c6fcd' };
-const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#3d3370' };
-const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#c4b8f5' };
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#7c6fcd', steel: '#5a6473' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#3d3370', steel: '#2e3440' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#c4b8f5', steel: '#aab4c2' };
 
 let colorCount = 3;
 let COLORS = ALL_COLORS.slice(0, colorCount);
@@ -208,6 +208,7 @@ let hyperPulseActive = false;
 let hyperPulseRemain = 0;   // ms left in active pulse
 const PULSE_INTERVAL = 15000;
 const PULSE_DURATION = 3000;
+const STEEL_INTERVALS = [20000, 13000, 8000, 4000]; // ms per phase
 
 function getPhase(secElapsed) {
   for (let i = PHASE_DEFS.length - 1; i >= 0; i--)
@@ -333,6 +334,7 @@ let sGold = 0, sBlocks = 0, sMaxCombo = 0;
 let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
+let steelSpawnTimer = 0; // ms until next steel block spawn
 
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
@@ -416,7 +418,7 @@ function bfs(sr, sc, id, vis) {
     if (vis[r][c]) continue;
     vis[r][c] = true;
     grid[r][c].chainId = id;
-    if (color === 'legendary' || grid[r][c].item) continue; // legendary/item는 혼자만 체인
+    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel) continue; // legendary/item/steel은 혼자만 체인
     for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
       if (inB(nr, nc) && !vis[nr][nc] && grid[nr][nc]?.color === color)
         q.push([nr, nc]);
@@ -438,6 +440,13 @@ function removeBlock(r, c) {
   if (!grid[r][c]) return;
   const blk = grid[r][c];
   const color = blk.color;
+  if (blk.steel) {
+    // 강철 블럭은 일반 공격 면역 — 클랭 이펙트만
+    ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.4, life: 0.6 });
+    shake(3, 4);
+    popup(GX + c * CELL + CELL / 2, GY + r * CELL - 4, '🔒', '#aab4c2');
+    return;
+  }
   burstParticles(r, c, BCOLOR[color] || '#ffffff');
   if (blk.item === 'firework') {
     grid[r][c] = null;
@@ -687,6 +696,24 @@ function runChain(chainBlocks, sr, sc) {
       popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, combo + '!', '#f0c040');
     }
   }, char.chainDelay);
+}
+
+// ═══════════════════════════════════════
+//  STEEL BLOCKS
+// ═══════════════════════════════════════
+function spawnSteel() {
+  // 상단 2행 중 랜덤 열에 강철 블럭 배치
+  const candidates = [];
+  for (let r = 0; r < 3; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item && grid[r][c].color !== 'legendary') candidates.push({ r, c });
+  if (!candidates.length) return;
+
+  const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
+  grid[r][c] = { color: 'steel', steel: true, chainId: -1, hp: 1, animY: grid[r][c].animY, fallV: 0 };
+  buildChains();
+  shake(4, 6);
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, '⚙️', '#aab4c2', true);
 }
 
 // ═══════════════════════════════════════
@@ -1099,6 +1126,31 @@ function drawGrid() {
         ctx.restore();
       }
 
+      // Steel block — crosshatch + icon
+      if (blk.steel) {
+        ctx.save();
+        // 빗금 패턴
+        ctx.strokeStyle = 'rgba(170,180,194,0.25)';
+        ctx.lineWidth = 1.5;
+        for (let d = -CELL; d < CELL * 2; d += 7) {
+          ctx.beginPath();
+          ctx.moveTo(x + PAD + d, y + PAD);
+          ctx.lineTo(x + PAD + d + CELL, y + PAD + CELL - PAD * 2);
+          ctx.stroke();
+        }
+        // 테두리
+        ctx.strokeStyle = '#aab4c2';
+        ctx.lineWidth = 2;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        // 아이콘
+        ctx.font = 'bold 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚙️', x + CELL / 2, y + CELL / 2);
+        ctx.restore();
+      }
+
       // Item block glow + emoji
       if (blk.item) {
         const glowColor = blk.item === 'firework' ? '#ff7f2a' : '#a855f7';
@@ -1275,6 +1327,13 @@ function loop(ts) {
       hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
     }
 
+    // 강철 블럭 스폰 타이머
+    steelSpawnTimer -= raw;
+    if (steelSpawnTimer <= 0) {
+      spawnSteel();
+      steelSpawnTimer = STEEL_INTERVALS[Math.min(currentPhase, STEEL_INTERVALS.length - 1)];
+    }
+
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
     const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * pulseMult;
     char.hp -= drainRate * raw / 1000;
@@ -1344,6 +1403,7 @@ function startGame() {
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
+  steelSpawnTimer = STEEL_INTERVALS[0];
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
