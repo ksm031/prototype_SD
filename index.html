@@ -249,9 +249,12 @@ const SPR = {};
 const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats' };
 const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
 const MAX_PARTICLES = 300;
+const MAX_RIPPLES   = 40;
+const MAX_POPUPS    = 20;
+const BOMB_RADIUS   = 2;
 
 const COMBO_MILESTONES = [
-  { threshold: 30, shakeAmt: 18, shakeFr: 40, haptic: [50, 15, 80, 15, 50], text: 'LEGENDARY!!', color: '#c084fc' },
+  { threshold: 30, shakeAmt: 18, shakeFr: 40, haptic: [50, 15, 80, 15, 50], text: 'LEGENDARY!!', color: '#c084fc', isStar: true },
   { threshold: 10, shakeAmt: 12, shakeFr: 28, haptic: [30, 10, 50],          text: 'CHOMP!!',     color: '#ff4444' },
   { threshold:  5, shakeAmt:  5, shakeFr: 14, haptic: [20, 10, 30],          text: 'COMBO!',      color: '#f0c040' },
 ];
@@ -753,8 +756,8 @@ function triggerBomb(r, c) {
   haptic([30, 10, 60, 10, 30]);
   bigPopup('💣 BOOM!!', '#a855f7');
   const cells = [];
-  for (let dr = -2; dr <= 2; dr++)
-    for (let dc = -2; dc <= 2; dc++)
+  for (let dr = -BOMB_RADIUS; dr <= BOMB_RADIUS; dr++)
+    for (let dc = -BOMB_RADIUS; dc <= BOMB_RADIUS; dc++)
       cells.push([r + dr, c + dc]);
   clearCells(cells, '#a855f7');
 }
@@ -786,7 +789,7 @@ function finishChain(combo) {
     shake(milestone.shakeAmt, milestone.shakeFr);
     haptic(milestone.haptic);
     bigPopup(milestone.text, milestone.color);
-    if (milestone.threshold === 30) burstStar(AW / 2, AH / 2 - 40);
+    if (milestone.isStar) burstStar(AW / 2, AH / 2 - 40);
   }
 
   safeTimeout(() => {
@@ -1240,7 +1243,7 @@ function drawChar() {
 
 function drawParticles() {
   particles = particles.filter(p => p.life > 0);
-  if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
+  if (particles.length > MAX_PARTICLES) particles = particles.slice(-MAX_PARTICLES);
   for (const p of particles) {
     p.x  += p.vx * slowFactor;
     p.y  += p.vy * slowFactor;
@@ -1272,6 +1275,7 @@ function drawParticles() {
 
 function drawRipples() {
   ripples = ripples.filter(r => r.life > 0);
+  if (ripples.length > MAX_RIPPLES) ripples = ripples.slice(-MAX_RIPPLES);
   for (const rpl of ripples) {
     rpl.rad  += 2.8 * slowFactor;
     rpl.life -= 0.06 * slowFactor;
@@ -1285,6 +1289,7 @@ function drawRipples() {
 
 function drawPopups() {
   popups = popups.filter(p => p.life > 0);
+  if (popups.length > MAX_POPUPS) popups = popups.slice(-MAX_POPUPS);
   for (const p of popups) {
     p.y    += p.vy * slowFactor;
     p.life -= 0.028 * slowFactor;
@@ -1469,8 +1474,9 @@ function showResult() {
   const anim = setInterval(() => {
     d = Math.min(d + step, earned);
     gel.textContent = d;
-    if (d >= earned) clearInterval(anim);
+    if (d >= earned) { pendingTimers.delete(anim); clearInterval(anim); }
   }, 40);
+  pendingTimers.add(anim);
 
   showScreen('rs');
 }
