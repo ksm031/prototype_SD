@@ -227,7 +227,7 @@ function updatePhase() {
 
 const BASE_X   = AW / 2;
 const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
-const CHAR_SPD = 10;       // px per frame (at 60fps)
+// CHAR_SPD 제거 — 이동 시간(ms) 고정 방식으로 대체
 const CHAIN_MS = 50;       // ms between block pops
 // SESSION 제거됨 — HP 드레인으로 대체
 const FRAME_MS = 80;       // ms per sprite frame
@@ -279,6 +279,14 @@ const STATS = {
       { value:0.50, gold:2000, mat:{ green:70, rare:10 } },
     ]
   },
+  movespeed: { name:'이동 속도', icon:'🦶', desc:'블록까지 이동 시간 ms (낮을수록 빠름)',
+    tiers:[
+      { value:420 },
+      { value:340, gold:300,  mat:{ blue:15 } },
+      { value:270, gold:800,  mat:{ blue:35 } },
+      { value:210, gold:2000, mat:{ blue:70, rare:8 } },
+    ]
+  },
   maxhp: { name:'최대 체력', icon:'❤️', desc:'최대 HP (회복량도 비례 증가)',
     tiers:[
       { value:100 },
@@ -289,7 +297,7 @@ const STATS = {
   },
 };
 
-const DEFAULT_STAT_LEVELS = { recovery:0, impact:0, speed:0, vitality:0, maxhp:0 };
+const DEFAULT_STAT_LEVELS = { recovery:0, impact:0, speed:0, vitality:0, maxhp:0, movespeed:0 };
 const getStatLevels  = () => Object.assign({}, DEFAULT_STAT_LEVELS, JSON.parse(localStorage.getItem(SK.stats)||'{}'));
 const saveStatLevels = v  => localStorage.setItem(SK.stats, JSON.stringify(v));
 function getStatLevel(id)       { return getStatLevels()[id] || 0; }
@@ -494,6 +502,8 @@ function initChar() {
     impactRange: getStatValue('impact'),
     chainDelay:  getStatValue('speed'),
     drainMult:   getStatValue('vitality'),
+    travelMs:    getStatValue('movespeed'),
+    moveSpd:     0,
     charScale:   1.0,
     tr: -1, tc: -1,
     sc: 1.0,
@@ -505,6 +515,8 @@ function initChar() {
 function goBase() {
   char.tx = BASE_X;
   char.ty = BASE_Y;
+  const d0 = Math.sqrt((char.tx - char.x) ** 2 + (char.ty - char.y) ** 2);
+  char.moveSpd = d0 / char.travelMs * 16.67;
   char.state = 'returning';
 }
 
@@ -538,7 +550,7 @@ function updateChar(dt) {
   const dx = char.tx - char.x;
   const dy = char.ty - char.y;
   const d  = Math.sqrt(dx * dx + dy * dy);
-  const spd = CHAR_SPD * (dt / 16.67);
+  const spd = char.moveSpd * (dt / 16.67);
 
   if (d < spd) {
     char.x = char.tx; char.y = char.ty;
@@ -1160,6 +1172,8 @@ function handleTap(cx, cy) {
   char.tr = row; char.tc = col;
   char.tx = GX + col * CELL + CELL / 2;
   char.ty = GY + row * CELL + CELL / 2;
+  const d0 = Math.sqrt((char.tx - char.x) ** 2 + (char.ty - char.y) ** 2);
+  char.moveSpd = d0 / char.travelMs * 16.67;
   char.state = 'moving';
   locked = true;
 }
@@ -1302,18 +1316,21 @@ function renderUpgradeTab() {
     const chk  = max ? { ok: false, reason: 'MAX' } : canUpgradeStat(id);
 
     // 수치 표시: 연쇄속도는 낮을수록 좋으니 방향 표현 달리함
-    const isSpeed    = id === 'speed';
-    const isVitality = id === 'vitality';
-    const isMaxhp    = id === 'maxhp';
-    let curVal  = isVitality ? Math.round((1 - cur.value) * 100) + '% 저항'
-                : isSpeed    ? cur.value + 'ms'
-                : isMaxhp    ? cur.value + ' HP'
+    const isSpeed     = id === 'speed';
+    const isVitality  = id === 'vitality';
+    const isMaxhp     = id === 'maxhp';
+    const isMoveSpeed = id === 'movespeed';
+    let curVal  = isVitality  ? Math.round((1 - cur.value) * 100) + '% 저항'
+                : isSpeed     ? cur.value + 'ms'
+                : isMaxhp     ? cur.value + ' HP'
+                : isMoveSpeed ? cur.value + 'ms'
                 : cur.value;
     let nextVal = '';
     if (next) {
-      nextVal = isVitality ? Math.round((1 - next.value) * 100) + '% 저항'
-              : isSpeed    ? next.value + 'ms'
-              : isMaxhp    ? next.value + ' HP'
+      nextVal = isVitality  ? Math.round((1 - next.value) * 100) + '% 저항'
+              : isSpeed     ? next.value + 'ms'
+              : isMaxhp     ? next.value + ' HP'
+              : isMoveSpeed ? next.value + 'ms'
               : next.value;
     }
 
