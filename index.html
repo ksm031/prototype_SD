@@ -82,7 +82,7 @@
     <div class="title">CHOMP CHAIN</div>
     <div class="sub">블록을 탭해 캐릭터를 먹여라!</div>
     <div class="stats-box">
-      <div class="stat-row"><span>⚡ 최고 연쇄</span><b id="m-hs">0콤보</b></div>
+      <div class="stat-row"><span>⏳ 최장 생존</span><b id="m-hs">0초</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
       <div class="stat-row"><span>🧪 재료</span><b id="m-mats" style="font-size:13px">—</b></div>
     </div>
@@ -125,10 +125,11 @@
   <div id="rs" class="screen">
     <div class="title" id="r-title" style="font-size:26px">세션 종료!</div>
     <div class="res-box">
+      <div class="res-row"><span>⏳ 생존 시간</span><b><span id="r-time">0</span>초</b></div>
       <div class="res-row"><span>💥 소멸 블록</span><b><span id="r-blk">0</span>개</b></div>
       <div class="res-row"><span>⚡ 최대 연쇄</span><b><span id="r-combo">0</span>콤보</b></div>
       <div class="res-row"><span>💰 획득 골드</span><b><span id="r-gold">0</span> G</b></div>
-      <div class="res-row"><span>🏆 최고 기록</span><b><span id="r-best">0</span>콤보</b></div>
+      <div class="res-row"><span>🏆 최장 생존</span><b><span id="r-best">0</span>초</b></div>
       <div class="res-row" id="r-mats-row" style="display:none">
         <span>🧪 획득 재료</span>
         <b><span id="r-mats"></span></b>
@@ -186,7 +187,7 @@ const BASE_X   = AW / 2;
 const BASE_Y   = GY + ROWS * CELL + 55;   // ≈ 449
 const CHAR_SPD = 10;       // px per frame (at 60fps)
 const CHAIN_MS = 50;       // ms between block pops
-const SESSION  = 90;
+// SESSION 제거됨 — HP 드레인으로 대체
 const FRAME_MS = 80;       // ms per sprite frame
 
 // ── CHOMPY 스프라이트 ──────────────────────
@@ -200,28 +201,50 @@ const SPR = {};
   }
 })();
 
-const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', chars: 'cc_chars' };
+const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats' };
 
-// ── 캐릭터 스탯 ────────────────────────────
-const LEVEL_BONUS = {
-  1: { hpAdd: 0, impactAdd: 0, delayReduce: 0,  scale: 1.0 },
-  2: { hpAdd: 1, impactAdd: 0, delayReduce: 0,  scale: 1.0 },
-  3: { hpAdd: 2, impactAdd: 1, delayReduce: 5,  scale: 1.2 },
-  4: { hpAdd: 4, impactAdd: 1, delayReduce: 10, scale: 1.2 },
-  5: { hpAdd: 7, impactAdd: 2, delayReduce: 15, scale: 1.4 },
+// ── 개별 스탯 정의 ────────────────────────
+const STATS = {
+  recovery: { name:'회복력', icon:'💚', desc:'블록 파괴 시 HP 회복량',
+    tiers:[
+      { value:3.0 },
+      { value:4.5,  gold:200,  mat:{ yellow:10 } },
+      { value:6.0,  gold:500,  mat:{ yellow:25 } },
+      { value:8.0,  gold:1200, mat:{ yellow:50, rare:3 } },
+      { value:11.0, gold:3000, mat:{ yellow:100, rare:10 } },
+    ]
+  },
+  impact: { name:'충격파', icon:'💥', desc:'연쇄 충격 범위 (칸)',
+    tiers:[
+      { value:1 },
+      { value:2, gold:300, mat:{ red:15 } },
+      { value:3, gold:900, mat:{ red:40, rare:5 } },
+    ]
+  },
+  speed: { name:'연쇄 속도', icon:'⚡', desc:'연쇄 간격 ms (낮을수록 빠름)',
+    tiers:[
+      { value:50 },
+      { value:40, gold:250, mat:{ blue:15 } },
+      { value:30, gold:700, mat:{ blue:35 } },
+      { value:22, gold:1800, mat:{ blue:70, rare:8 } },
+    ]
+  },
+  vitality: { name:'생명력', icon:'🛡️', desc:'HP 드레인 배율 (낮을수록 좋음)',
+    tiers:[
+      { value:1.00 },
+      { value:0.82, gold:300, mat:{ green:15 } },
+      { value:0.65, gold:800, mat:{ green:35 } },
+      { value:0.50, gold:2000, mat:{ green:70, rare:10 } },
+    ]
+  },
 };
-const UPGRADE_COST = {
-  1: { gold: 200,  anyMat: 10, mainMat: 0,  rare: 0  },
-  2: { gold: 500,  anyMat: 0,  mainMat: 20, rare: 0  },
-  3: { gold: 1200, anyMat: 0,  mainMat: 40, rare: 5  },
-  4: { gold: 3000, anyMat: 0,  mainMat: 80, rare: 15 },
-};
-function getCharLevel(id)      { return +(JSON.parse(localStorage.getItem(SK.chars)||'{}')[id]||1); }
-function saveCharLevel(id, lv) { const d=JSON.parse(localStorage.getItem(SK.chars)||'{}'); d[id]=lv; localStorage.setItem(SK.chars,JSON.stringify(d)); }
-function getCharacterStats(lv) {
-  const b = LEVEL_BONUS[lv];
-  return { hp: 3+b.hpAdd, impactRange: 1+b.impactAdd, chainDelay: Math.max(30, 50-b.delayReduce), scale: b.scale };
-}
+
+const DEFAULT_STAT_LEVELS = { recovery:0, impact:0, speed:0, vitality:0 };
+const getStatLevels  = () => Object.assign({}, DEFAULT_STAT_LEVELS, JSON.parse(localStorage.getItem(SK.stats)||'{}'));
+const saveStatLevels = v  => localStorage.setItem(SK.stats, JSON.stringify(v));
+function getStatLevel(id)       { return getStatLevels()[id] || 0; }
+function saveStatLevel(id, lv)  { const d = getStatLevels(); d[id] = lv; saveStatLevels(d); }
+function getStatValue(id)       { const lv = getStatLevel(id); return STATS[id].tiers[lv].value; }
 
 const DEFAULT_MATS = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 const getMats = () => Object.assign({}, DEFAULT_MATS, JSON.parse(localStorage.getItem(SK.mats) || '{}'));
@@ -244,7 +267,7 @@ let gstate  = 'idle';  // idle | playing | over
 let grid    = [];
 let char    = {};
 
-let timeLeft = SESSION, timerID = null;
+let gameElapsed = 0;  // ms, slowFactor 무관 누적
 let sGold = 0, sBlocks = 0, sMaxCombo = 0;
 let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
@@ -285,7 +308,7 @@ function showScreen(id) {
 
 function showMain() {
   stopGame();
-  document.getElementById('m-hs').textContent   = getHS() + '콤보';
+  document.getElementById('m-hs').textContent   = getHS() + '초';
   document.getElementById('m-gold').textContent = getGold() + ' G';
 
   const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
@@ -403,17 +426,16 @@ function updateBlockAnims(dt) {
 //  CHARACTER
 // ═══════════════════════════════════════
 function initChar() {
-  const lv    = getCharLevel('chompy');
-  const stats = getCharacterStats(lv);
   char = {
     x: BASE_X, y: BASE_Y,
     tx: BASE_X, ty: BASE_Y,
     state: 'idle',
-    hp: stats.hp, maxHp: stats.hp,
-    impactRange: stats.impactRange,
-    chainDelay:  stats.chainDelay,
-    charScale:   stats.scale,
-    level: lv,
+    hp: 100, maxHp: 100,
+    hpPerBlock:  getStatValue('recovery'),
+    impactRange: getStatValue('impact'),
+    chainDelay:  getStatValue('speed'),
+    drainMult:   getStatValue('vitality'),
+    charScale:   1.0,
     tr: -1, tc: -1,
     sc: 1.0,
     sprFrame: 'idle_01',
@@ -490,7 +512,7 @@ function startEat(r, c) {
 
   if (!block) {
     // Empty cell hit
-    char.hp--;
+    char.hp = Math.max(0, char.hp - 10);
     char.state = 'stunned';
     shake(6, 18);
     haptic([15, 5, 15]);
@@ -505,8 +527,6 @@ function startEat(r, c) {
   const chain = getChain(block.chainId);
 
   if (chain.length === 1) {
-    // Lonely block — penalty
-    char.hp--;
     removeBlock(r, c);
     sBlocks++;
     sGold += 10;
@@ -525,11 +545,17 @@ function byDist(blocks, sr, sc) {
   );
 }
 
+function healFromBlock(chainSize) {
+  const bonus = Math.max(1.0, 1 + (chainSize - 2) * 0.1);
+  char.hp = Math.min(char.maxHp, char.hp + char.hpPerBlock * bonus);
+}
+
 function runChain(chainBlocks, sr, sc) {
   const ordered = byDist(chainBlocks, sr, sc);
   // 체인 블록 위치 집합 (wave 피해 수집 시 제외용)
   const chainSet = new Set(chainBlocks.map(b => b.r * COLS + b.c));
   const waveMap  = new Map(); // key → {r,c}  wave 피해 블록 수집
+  const chainSize = chainBlocks.length;
   let combo = 0;
   char.state = 'eating';
 
@@ -541,6 +567,7 @@ function runChain(chainBlocks, sr, sc) {
         if (!grid[r][c]) continue;
         ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: 4, life: 0.8 });
         removeBlock(r, c);
+        healFromBlock(chainSize);
         combo++;
         sBlocks++;
         sGold += 10;
@@ -553,6 +580,7 @@ function runChain(chainBlocks, sr, sc) {
     const { r, c } = ordered.shift();
     if (!grid[r][c]) return;
     removeBlock(r, c);
+    healFromBlock(chainSize);
     combo++;
     sBlocks++;
     sGold += 10;
@@ -614,31 +642,16 @@ function checkOver() {
 function endGame(reason) {
   if (gstate !== 'playing') return;
   gstate = 'over';
-  clearInterval(timerID);
 
   if (reason === 'clear') {
     sGold += 100;
     bigPopup('PERFECT!!', '#7ec850');
   } else if (reason === 'hp') {
     shake(14, 30);
+    bigPopup('GAME OVER', '#ff5555');
   }
   slowFactor = 0.2;
   setTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
-}
-
-// ═══════════════════════════════════════
-//  TIMER
-// ═══════════════════════════════════════
-function startTimer() {
-  timeLeft = SESSION;
-  timerID = setInterval(() => {
-    if (slowFactor < 1.0) return;
-    timeLeft--;
-    if (timeLeft <= 0) {
-      clearInterval(timerID);
-      if (gstate === 'playing') endGame('time');
-    }
-  }, 1000);
 }
 
 // ═══════════════════════════════════════
@@ -720,29 +733,63 @@ function render(dt) {
 
 function drawHUD() {
   // BG
-  ctx.fillStyle = 'rgba(10,10,22,0.8)';
-  ctx.fillRect(0, 0, AW, 52);
+  ctx.fillStyle = 'rgba(10,10,22,0.88)';
+  ctx.fillRect(0, 0, AW, 50);
 
-  // Timer
-  const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
-  ctx.fillStyle = timeLeft <= 10 ? '#ff5555' : '#f0c040';
-  ctx.font = 'bold 16px system-ui';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`⏱ ${m}:${String(s).padStart(2, '0')}`, 12, 28);
+  const pct = Math.max(0, char.hp / char.maxHp);
+  const BAR_X = 8, BAR_Y = 6, BAR_W = AW - 16, BAR_H = 14;
 
-  // HP hearts
-  ctx.font = '15px serif';
+  // HP bar track
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  rRect(BAR_X, BAR_Y, BAR_W, BAR_H, 4);
+  ctx.fill();
+
+  // HP bar fill (색상: 초록 → 노랑 → 빨강)
+  const barColor = pct > 0.5 ? '#7ec850' : pct > 0.25 ? '#f0c040' : '#ff5555';
+  // 깜빡임: hp < 25% 시 점멸
+  const blink = pct < 0.25 && Math.floor(Date.now() / 200) % 2 === 0;
+  if (!blink && pct > 0) {
+    ctx.fillStyle = barColor;
+    rRect(BAR_X, BAR_Y, Math.max(8, BAR_W * pct), BAR_H, 4);
+    ctx.fill();
+  }
+
+  // HP bar border
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  rRect(BAR_X, BAR_Y, BAR_W, BAR_H, 4);
+  ctx.stroke();
+
+  // HP % text on bar
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = 'bold 10px system-ui';
   ctx.textAlign = 'center';
-  let hp = '';
-  for (let i = 0; i < char.maxHp; i++) hp += i < char.hp ? '❤️' : '🖤';
-  ctx.fillText(hp, AW / 2, 28);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
-  // Gold
+  // 하단 행: 드레인 속도 | 생존 시간 | 골드
+  const drainRate = (0.5 + gameElapsed / 1000 * 0.012) * char.drainMult;
+  const secStr    = Math.floor(gameElapsed / 1000) + 's';
+
+  ctx.textBaseline = 'middle';
+  ctx.font = '12px system-ui';
+
+  // 드레인 (좌)
+  const drainColor = drainRate < 1.0 ? '#7ec850' : drainRate < 1.8 ? '#f0c040' : '#ff5555';
+  ctx.fillStyle = drainColor;
+  ctx.textAlign = 'left';
+  ctx.fillText(`🔥 ${drainRate.toFixed(1)}/s`, BAR_X, 38);
+
+  // 생존 시간 (중앙)
+  ctx.fillStyle = '#8888aa';
+  ctx.textAlign = 'center';
+  ctx.fillText(secStr, AW / 2, 38);
+
+  // 골드 (우)
   ctx.fillStyle = '#f0c040';
-  ctx.font = 'bold 15px system-ui';
+  ctx.font = 'bold 12px system-ui';
   ctx.textAlign = 'right';
-  ctx.fillText(sGold + ' G', AW - 12, 28);
+  ctx.fillText(sGold + ' G', AW - BAR_X, 38);
 }
 
 function drawGrid() {
@@ -900,6 +947,14 @@ function loop(ts) {
   const dt  = raw * slowFactor;
   lastTS = ts;
 
+  // HP 드레인 (실시간, slowFactor 무관 elapsed 사용)
+  if (gstate === 'playing') {
+    gameElapsed += raw;
+    const drainRate = (0.5 + gameElapsed / 1000 * 0.012) * char.drainMult;
+    char.hp -= drainRate * raw / 1000;
+    if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
+  }
+
   updateChar(dt);
   updateBlockAnims(dt);
   render(dt);
@@ -951,14 +1006,13 @@ canvas.addEventListener('touchstart', e => {
 // ═══════════════════════════════════════
 function stopGame() {
   cancelAnimationFrame(rafID);
-  clearInterval(timerID);
   gstate = 'idle';
 }
 
 function startGame() {
   stopGame();
   gstate = 'playing';
-  sGold = 0; sBlocks = 0; sMaxCombo = 0;
+  sGold = 0; sBlocks = 0; sMaxCombo = 0; gameElapsed = 0;
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = [];
@@ -966,18 +1020,19 @@ function startGame() {
 
   initGrid();
   initChar();
-  startTimer();
   showScreen('gc');
   rafID = requestAnimationFrame(loop);
 }
 
 function showResult() {
-  const earned  = Math.max(10, sGold);
-  const newGold = getGold() + earned;
-  const newBest = Math.max(getHS(), sMaxCombo);
+  const earned   = Math.max(10, sGold);
+  const newGold  = getGold() + earned;
+  const survived = Math.floor(gameElapsed / 1000);
+  const newBest  = Math.max(getHS(), survived);
   saveGold(newGold);
   saveHS(newBest);
 
+  document.getElementById('r-time').textContent  = survived;
   document.getElementById('r-blk').textContent   = sBlocks;
   document.getElementById('r-combo').textContent  = sMaxCombo;
   document.getElementById('r-best').textContent   = newBest;
@@ -1021,42 +1076,33 @@ function showResult() {
 // ═══════════════════════════════════════
 const CICON = { red:'🔴', blue:'🔵', yellow:'🟡', green:'🟢', purple:'🟣' };
 
-function canUpgrade() {
-  const lv = getCharLevel('chompy');
-  if (lv >= 5) return { ok: false, reason: '최대 레벨' };
-  const cost = UPGRADE_COST[lv];
+function canUpgradeStat(id) {
+  const lv    = getStatLevel(id);
+  const tiers = STATS[id].tiers;
+  if (lv >= tiers.length - 1) return { ok: false, reason: 'MAX' };
+  const next = tiers[lv + 1];
   const gold = getGold(), mats = getMats();
-  if (gold < cost.gold) return { ok: false, reason: `골드 부족 (${cost.gold - gold}G)` };
-  if (cost.anyMat > 0) {
-    const tot = mats.red + mats.blue + mats.yellow + mats.green + mats.purple;
-    if (tot < cost.anyMat) return { ok: false, reason: `재료 부족 (${cost.anyMat - tot}개)` };
+  if (gold < next.gold) return { ok: false, reason: `골드 부족 (${next.gold - gold}G)` };
+  for (const [k, need] of Object.entries(next.mat)) {
+    const have = k === 'rare' ? (mats.rare || 0) : (mats[k] || 0);
+    if (have < need) return { ok: false, reason: `${CICON[k]||'⭐'} 부족` };
   }
-  if (cost.mainMat > 0 && mats.yellow < cost.mainMat)
-    return { ok: false, reason: `🟡 부족 (${cost.mainMat - mats.yellow}개)` };
-  if (cost.rare > 0 && mats.rare < cost.rare)
-    return { ok: false, reason: `⭐ 부족 (${cost.rare - mats.rare}개)` };
   return { ok: true };
 }
 
-function doUpgrade() {
-  const check = canUpgrade();
-  if (!check.ok) return;
-  const lv   = getCharLevel('chompy');
-  const cost = UPGRADE_COST[lv];
+function doUpgradeStat(id) {
+  const chk = canUpgradeStat(id);
+  if (!chk.ok) return;
+  const lv   = getStatLevel(id);
+  const next = STATS[id].tiers[lv + 1];
   const mats = getMats();
-  saveGold(getGold() - cost.gold);
-  if (cost.anyMat > 0) {
-    let need = cost.anyMat;
-    for (const k of ['red','blue','yellow','green','purple']) {
-      const take = Math.min(need, mats[k]||0);
-      mats[k] -= take; need -= take;
-      if (!need) break;
-    }
+  saveGold(getGold() - next.gold);
+  for (const [k, need] of Object.entries(next.mat)) {
+    if (k === 'rare') mats.rare = (mats.rare || 0) - need;
+    else mats[k] = (mats[k] || 0) - need;
   }
-  if (cost.mainMat > 0) mats.yellow -= cost.mainMat;
-  if (cost.rare  > 0)   mats.rare   -= cost.rare;
   saveMats(mats);
-  saveCharLevel('chompy', lv + 1);
+  saveStatLevel(id, lv + 1);
   renderUpgradeTab();
 }
 
@@ -1068,67 +1114,74 @@ function shopTab(tab) {
 }
 
 function renderUpgradeTab() {
-  const lv   = getCharLevel('chompy');
   const gold = getGold(), mats = getMats();
-  const cur  = getCharacterStats(lv);
 
   document.getElementById('sh-gold').textContent = gold.toLocaleString() + ' G 🪙';
   const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${CICON[k]}${v}`).join(' ');
   document.getElementById('sh-mats-line').textContent = (matStr||'재료 없음') + (mats.rare>0 ? '  ⭐'+mats.rare : '');
 
-  const el = document.getElementById('sh-upgrade');
-  if (lv >= 5) {
-    el.innerHTML = `<div style="text-align:center;padding:24px 0">
-      <div style="font-size:52px">👾</div>
-      <div style="color:#f0c040;font-weight:700;font-size:18px;margin-top:8px">먹깨비 Lv.5 MAX</div>
-      <div style="color:#505070;font-size:13px;margin-top:6px">모든 강화 완료!</div></div>`;
-    return;
+  const container = document.getElementById('sh-upgrade');
+
+  function statCard(id) {
+    const s    = STATS[id];
+    const lv   = getStatLevel(id);
+    const cur  = s.tiers[lv];
+    const max  = lv >= s.tiers.length - 1;
+    const next = max ? null : s.tiers[lv + 1];
+    const chk  = max ? { ok: false, reason: 'MAX' } : canUpgradeStat(id);
+
+    // 수치 표시: 연쇄속도는 낮을수록 좋으니 방향 표현 달리함
+    const isSpeed   = id === 'speed';
+    const isVitality = id === 'vitality';
+    let curVal  = isVitality ? Math.round((1 - cur.value) * 100) + '% 저항'
+                : isSpeed    ? cur.value + 'ms'
+                : cur.value;
+    let nextVal = '';
+    if (next) {
+      nextVal = isVitality ? Math.round((1 - next.value) * 100) + '% 저항'
+              : isSpeed    ? next.value + 'ms'
+              : next.value;
+    }
+
+    // 필요 조건 (다음 티어)
+    let reqHtml = '';
+    if (next) {
+      reqHtml += `<span style="color:${gold>=next.gold?'#7ec850':'#ff5555'}">💰${next.gold}G</span>`;
+      for (const [k, need] of Object.entries(next.mat)) {
+        const have = k === 'rare' ? (mats.rare||0) : (mats[k]||0);
+        const ok = have >= need;
+        reqHtml += ` <span style="color:${ok?'#7ec850':'#ff5555'}">${CICON[k]||'⭐'}${need}</span>`;
+      }
+    }
+
+    const tierDots = s.tiers.map((_,i) =>
+      `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${i<=lv?'#f0c040':'rgba(255,255,255,0.15)'};margin:0 2px"></span>`
+    ).join('');
+
+    return `<div class="stats-box" style="padding:12px 15px;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:15px;font-weight:700;color:#e0e0f0">${s.icon} ${s.name}</span>
+        <span style="font-size:11px;color:#606080">${tierDots}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+        <span style="color:#9090b0">${s.desc}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:14px">
+        <span style="color:#ccc">${curVal}</span>
+        ${next ? `<span style="color:#505070">→</span><span style="color:#7ec850;font-weight:700">${nextVal}</span>` : ''}
+      </div>
+      ${next ? `<div style="font-size:12px;color:#9090b0;margin-top:2px">${reqHtml}</div>` : ''}
+      ${max
+        ? `<div style="text-align:center;color:#f0c040;font-size:12px;font-weight:700;padding:4px 0">✅ MAX</div>`
+        : `<button class="btn ${chk.ok?'btn-p':'btn-s'}" onclick="doUpgradeStat('${id}')"
+             style="padding:8px;font-size:13px${chk.ok?'':';opacity:.5;cursor:not-allowed'}">
+             ${chk.ok ? '업그레이드' : chk.reason}
+           </button>`
+      }
+    </div>`;
   }
 
-  const nlv  = lv + 1;
-  const next = getCharacterStats(nlv);
-  const cost = UPGRADE_COST[lv];
-  const chk  = canUpgrade();
-
-  // 스탯 변화
-  const diffs = [];
-  if (next.hp !== cur.hp) diffs.push(`체력 ${cur.hp} → <b style="color:#7ec850">${next.hp}</b>`);
-  if (next.impactRange !== cur.impactRange) diffs.push(`충격파 ${cur.impactRange} → <b style="color:#7ec850">${next.impactRange}칸</b>`);
-  if (next.chainDelay  !== cur.chainDelay)  diffs.push(`연쇄 속도 ${cur.chainDelay} → <b style="color:#7ec850">${next.chainDelay}ms</b>`);
-  if (next.scale !== cur.scale) diffs.push(`크기 × <b style="color:#7ec850">${next.scale}</b>`);
-
-  // 필요 조건
-  function req(label, have, need) {
-    const ok = have >= need;
-    return `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px">
-      <span style="color:#9090b0">${label}</span>
-      <span style="color:${ok?'#7ec850':'#ff5555'}">${ok?'✅':'❌'} ${have}/${need}</span></div>`;
-  }
-  let reqHtml = req(`💰 골드`, gold, cost.gold);
-  if (cost.anyMat > 0) {
-    const tot = mats.red+mats.blue+mats.yellow+mats.green+mats.purple;
-    reqHtml += req('🧪 아무 재료', tot, cost.anyMat);
-  }
-  if (cost.mainMat > 0) reqHtml += req('🟡 순수 조각', mats.yellow, cost.mainMat);
-  if (cost.rare    > 0) reqHtml += req('⭐ 공명 조각', mats.rare,   cost.rare);
-
-  el.innerHTML = `
-    <div style="text-align:center;padding:8px 0">
-      <div style="font-size:44px">👾</div>
-      <div style="color:#f0c040;font-weight:700;font-size:16px;margin-top:4px">먹깨비 Lv.${lv}</div>
-    </div>
-    <div class="stats-box" style="padding:11px 15px;gap:5px">
-      <div style="color:#9090b0;font-size:11px;margin-bottom:2px">Lv.${nlv} 달성 시 변화</div>
-      ${diffs.length ? diffs.map(d=>`<div style="font-size:13px;color:#ccc">${d}</div>`).join('') : '<div style="font-size:13px;color:#606080">외형 변화만</div>'}
-    </div>
-    <div class="stats-box" style="padding:11px 15px;gap:2px">
-      <div style="color:#9090b0;font-size:11px;margin-bottom:4px">필요 조건</div>
-      ${reqHtml}
-    </div>
-    <button class="btn ${chk.ok?'btn-p':'btn-s'}" onclick="doUpgrade()"
-      ${chk.ok?'':'style="opacity:.5;cursor:not-allowed"'}>
-      ${chk.ok ? `Lv.${nlv}로 강화!` : chk.reason}
-    </button>`;
+  container.innerHTML = Object.keys(STATS).map(statCard).join('');
 }
 
 function showShop() {
