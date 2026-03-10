@@ -84,6 +84,15 @@
     }
     .res-row { display: flex; justify-content: space-between; color: #9090b0; font-size: 14px; }
     .res-row b { color: #f0c040; font-size: 17px; }
+    /* ── pause button ── */
+    #pause-btn {
+      display: none; position: absolute; top: 12px; right: 12px;
+      z-index: 10; width: 40px; height: 40px; border: none; border-radius: 10px;
+      background: rgba(255,255,255,.15); backdrop-filter: blur(4px);
+      color: #fff; font-size: 18px; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    #pause-btn:active { transform: scale(.9); }
   </style>
 </head>
 <body>
@@ -140,6 +149,7 @@
 
   <!-- GAME -->
   <canvas id="gc" width="360" height="520"></canvas>
+  <button id="pause-btn" onclick="togglePause()">⏸</button>
 
   <!-- RESULT -->
   <div id="rs" class="screen">
@@ -340,7 +350,7 @@ function addMats(gained) {
 const canvas = document.getElementById('gc');
 const ctx    = canvas.getContext('2d');
 
-let gstate  = 'idle';  // idle | playing | over
+let gstate  = 'idle';  // idle | playing | paused | over
 let grid    = [];
 let char    = {};
 
@@ -376,8 +386,12 @@ function showScreen(id) {
     el.classList.remove('active');
   });
   canvas.style.display = 'none';
+  document.getElementById('pause-btn').style.display = 'none';
   if (id === 'gc') {
     canvas.style.display = 'block';
+    document.getElementById('pause-btn').style.display = 'flex';
+    document.getElementById('pause-btn').style.alignItems = 'center';
+    document.getElementById('pause-btn').style.justifyContent = 'center';
   } else {
     const el = document.getElementById(id);
     el.style.display = 'flex';
@@ -1311,6 +1325,13 @@ function drawPopups() {
 // ═══════════════════════════════════════
 function loop(ts) {
   if (gstate === 'idle') return;
+  rafID = requestAnimationFrame(loop);
+
+  if (gstate === 'paused') {
+    drawPauseOverlay();
+    return;
+  }
+
   const raw = ts - (lastTS || ts);
   const dt  = raw * slowFactor;
   lastTS = ts;
@@ -1354,7 +1375,6 @@ function loop(ts) {
   updateChar(dt);
   updateBlockAnims(dt);
   render(dt);
-  rafID = requestAnimationFrame(loop);
 }
 
 // ═══════════════════════════════════════
@@ -1402,12 +1422,40 @@ canvas.addEventListener('touchstart', e => {
 // ═══════════════════════════════════════
 //  START / STOP
 // ═══════════════════════════════════════
+function togglePause() {
+  if (gstate === 'over') return;
+  if (gstate === 'playing') {
+    gstate = 'paused';
+    document.getElementById('pause-btn').textContent = '▶';
+  } else if (gstate === 'paused') {
+    gstate = 'playing';
+    lastTS = 0;  // prevent dt spike on resume
+    document.getElementById('pause-btn').textContent = '⏸';
+  }
+}
+
+function drawPauseOverlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 10, 30, 0.72)';
+  ctx.fillRect(0, 0, AW, AH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 32px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('일시정지', AW / 2, AH / 2 - 16);
+  ctx.font = '400 14px sans-serif';
+  ctx.fillStyle = 'rgba(200,200,220,0.7)';
+  ctx.fillText('버튼을 눌러 재개', AW / 2, AH / 2 + 22);
+  ctx.restore();
+}
+
 function stopGame() {
   cancelAnimationFrame(rafID);
   for (const id of pendingTimers) clearTimeout(id);
   pendingTimers.clear();
   locked = false;
   gstate = 'idle';
+  document.getElementById('pause-btn').textContent = '⏸';
 }
 
 function safeTimeout(fn, ms) {
