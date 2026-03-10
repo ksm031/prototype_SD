@@ -194,10 +194,10 @@ let COLORS = ALL_COLORS.slice(0, colorCount);
 
 // 시간 기반 단계: 0-60s=3색, 60-120s=4색, 120-180s=5색, 180s+=HYPER
 const PHASE_DEFS = [
-  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png' },
-  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png' },
-  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png' },
-  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png' },
+  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png', steelInterval: 20000 },
+  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png', steelInterval: 13000 },
+  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png', steelInterval: 8000  },
+  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png', steelInterval: 4000  },
 ];
 
 // 배경 이미지 프리로드
@@ -208,7 +208,6 @@ let hyperPulseActive = false;
 let hyperPulseRemain = 0;   // ms left in active pulse
 const PULSE_INTERVAL = 15000;
 const PULSE_DURATION = 3000;
-const STEEL_INTERVALS = [20000, 13000, 8000, 4000]; // ms per phase
 
 function getPhase(secElapsed) {
   for (let i = PHASE_DEFS.length - 1; i >= 0; i--)
@@ -248,6 +247,19 @@ const SPR = {};
 })();
 
 const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats' };
+const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+const MAX_PARTICLES = 300;
+
+const COMBO_MILESTONES = [
+  { threshold: 30, shakeAmt: 18, shakeFr: 40, haptic: [50, 15, 80, 15, 50], text: 'LEGENDARY!!', color: '#c084fc' },
+  { threshold: 10, shakeAmt: 12, shakeFr: 28, haptic: [30, 10, 50],          text: 'CHOMP!!',     color: '#ff4444' },
+  { threshold:  5, shakeAmt:  5, shakeFr: 14, haptic: [20, 10, 30],          text: 'COMBO!',      color: '#f0c040' },
+];
+
+const ITEM_DROP_TIERS = [
+  { threshold: 15, type: 'bomb'     },
+  { threshold:  8, type: 'firework' },
+];
 
 // ── 개별 스탯 정의 ────────────────────────
 const STATS = {
@@ -335,6 +347,7 @@ let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 let steelSpawnTimer = 0; // ms until next steel block spawn
+let pendingTimers = new Set();
 
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
@@ -374,7 +387,6 @@ function showMain() {
   document.getElementById('m-hs').textContent   = getHS() + '초';
   document.getElementById('m-gold').textContent = getGold() + ' G';
 
-  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
   const mats = getMats();
   const parts = Object.entries(mats).filter(([, v]) => v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
   document.getElementById('m-mats').textContent = parts.length ? parts.join(' ') : '—';
@@ -585,7 +597,7 @@ function updateChar(dt) {
       // 랜딩 애니메이션 후 idle로
       char.state = 'landing';
       char.frameT = 0;
-      setTimeout(() => {
+      safeTimeout(() => {
         char.state = 'idle';
         char.frameT = 0;
         locked = false;
@@ -611,7 +623,7 @@ function startEat(r, c) {
     shake(6, 18);
     haptic([15, 5, 15]);
     popup(char.x, char.y - 44, 'OW!', '#ff5555');
-    setTimeout(() => {
+    safeTimeout(() => {
       goBase();
       checkOver();
     }, 750);
@@ -626,7 +638,7 @@ function startEat(r, c) {
     sGold += 10;
     popup(char.x, char.y - 44, '…', '#888899');
     char.state = 'returning';
-    setTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
+    safeTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
     return;
   }
 
@@ -654,6 +666,7 @@ function runChain(chainBlocks, sr, sc) {
   char.state = 'eating';
 
   const iv = setInterval(() => {
+    if (gstate !== 'playing') { clearInterval(iv); return; }
     if (!ordered.length) {
       clearInterval(iv);
       // Phase 3: 체인 주변 인접 블록 한꺼번에 처리
@@ -719,38 +732,37 @@ function spawnSteel() {
 // ═══════════════════════════════════════
 //  ITEM BLOCKS
 // ═══════════════════════════════════════
+function clearCells(cells, color) {
+  for (const [r, c] of cells) {
+    if (!inB(r, c) || !grid[r][c]) continue;
+    burstParticles(r, c, color);
+    grid[r][c] = null;
+  }
+}
+
 function triggerFirework(r, c) {
   shake(8, 18);
   haptic([20, 10, 40]);
   bigPopup('🧨 BANG!', '#ff7f2a');
-  for (let cc = 0; cc < COLS; cc++) {
-    if (grid[r][cc]) {
-      burstParticles(r, cc, '#ff7f2a');
-      grid[r][cc] = null;
-    }
-  }
+  const cells = Array.from({ length: COLS }, (_, cc) => [r, cc]);
+  clearCells(cells, '#ff7f2a');
 }
 
 function triggerBomb(r, c) {
   shake(16, 32);
   haptic([30, 10, 60, 10, 30]);
   bigPopup('💣 BOOM!!', '#a855f7');
-  for (let dr = -2; dr <= 2; dr++) {
-    for (let dc = -2; dc <= 2; dc++) {
-      const nr = r + dr, nc = c + dc;
-      if (inB(nr, nc) && grid[nr][nc]) {
-        burstParticles(nr, nc, '#a855f7');
-        grid[nr][nc] = null;
-      }
-    }
-  }
+  const cells = [];
+  for (let dr = -2; dr <= 2; dr++)
+    for (let dc = -2; dc <= 2; dc++)
+      cells.push([r + dr, c + dc]);
+  clearCells(cells, '#a855f7');
 }
 
 function dropItemBlock(combo) {
-  let type = null;
-  if (combo >= 15) type = 'bomb';
-  else if (combo >= 8) type = 'firework';
-  if (!type) return;
+  const tier = ITEM_DROP_TIERS.find(t => combo >= t.threshold);
+  if (!tier) return;
+  const type = tier.type;
 
   const candidates = [];
   for (let r = 0; r < ROWS; r++)
@@ -769,22 +781,15 @@ function finishChain(combo) {
   if (combo > sMaxCombo) sMaxCombo = combo;
   if (combo >= 5) sGold += combo * 5;
 
-  if (combo >= 30) {
-    shake(18, 40);
-    haptic([50, 15, 80, 15, 50]);
-    bigPopup('LEGENDARY!!', '#c084fc');
-    burstStar(AW / 2, AH / 2 - 40);
-  } else if (combo >= 10) {
-    shake(12, 28);
-    haptic([30, 10, 50]);
-    bigPopup('CHOMP!!', '#ff4444');
-  } else if (combo >= 5) {
-    shake(5, 14);
-    haptic([20, 10, 30]);
-    bigPopup('COMBO!', '#f0c040');
+  const milestone = COMBO_MILESTONES.find(m => combo >= m.threshold);
+  if (milestone) {
+    shake(milestone.shakeAmt, milestone.shakeFr);
+    haptic(milestone.haptic);
+    bigPopup(milestone.text, milestone.color);
+    if (milestone.threshold === 30) burstStar(AW / 2, AH / 2 - 40);
   }
 
-  setTimeout(() => {
+  safeTimeout(() => {
     gravity();
     dropItemBlock(combo);
     goBase();
@@ -813,7 +818,7 @@ function endGame(reason) {
     bigPopup('GAME OVER', '#ff5555');
   }
   slowFactor = 0.2;
-  setTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
+  safeTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
 }
 
 // ═══════════════════════════════════════
@@ -1235,6 +1240,7 @@ function drawChar() {
 
 function drawParticles() {
   particles = particles.filter(p => p.life > 0);
+  if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
   for (const p of particles) {
     p.x  += p.vx * slowFactor;
     p.y  += p.vy * slowFactor;
@@ -1331,7 +1337,7 @@ function loop(ts) {
     steelSpawnTimer -= raw;
     if (steelSpawnTimer <= 0) {
       spawnSteel();
-      steelSpawnTimer = STEEL_INTERVALS[Math.min(currentPhase, STEEL_INTERVALS.length - 1)];
+      steelSpawnTimer = PHASE_DEFS[Math.min(currentPhase, PHASE_DEFS.length - 1)].steelInterval;
     }
 
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
@@ -1393,7 +1399,16 @@ canvas.addEventListener('touchstart', e => {
 // ═══════════════════════════════════════
 function stopGame() {
   cancelAnimationFrame(rafID);
+  for (const id of pendingTimers) clearTimeout(id);
+  pendingTimers.clear();
+  locked = false;
   gstate = 'idle';
+}
+
+function safeTimeout(fn, ms) {
+  const id = setTimeout(() => { pendingTimers.delete(id); fn(); }, ms);
+  pendingTimers.add(id);
+  return id;
 }
 
 function startGame() {
@@ -1403,9 +1418,9 @@ function startGame() {
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
-  steelSpawnTimer = STEEL_INTERVALS[0];
+  steelSpawnTimer = PHASE_DEFS[0].steelInterval;
   slowFactor = 1.0; lastTS = 0; locked = false;
-  particles = []; popups = []; ripples = [];
+  particles = []; popups = []; ripples = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
 
   initGrid();
@@ -1428,7 +1443,6 @@ function showResult() {
   document.getElementById('r-best').textContent   = newBest;
 
   // 재료 정산 (블록 5개당 1개)
-  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
   const gainedMats = {};
   for (const [color, cnt] of Object.entries(sDestroyed)) {
     const g = Math.floor(cnt / 5);
@@ -1464,8 +1478,6 @@ function showResult() {
 // ═══════════════════════════════════════
 //  SHOP / UPGRADE
 // ═══════════════════════════════════════
-const CICON = { red:'🔴', blue:'🔵', yellow:'🟡', green:'🟢', purple:'🟣' };
-
 function canUpgradeStat(id) {
   const lv    = getStatLevel(id);
   const tiers = STATS[id].tiers;
@@ -1475,7 +1487,7 @@ function canUpgradeStat(id) {
   if (gold < next.gold) return { ok: false, reason: `골드 부족 (${next.gold - gold}G)` };
   for (const [k, need] of Object.entries(next.mat)) {
     const have = k === 'rare' ? (mats.rare || 0) : (mats[k] || 0);
-    if (have < need) return { ok: false, reason: `${CICON[k]||'⭐'} 부족` };
+    if (have < need) return { ok: false, reason: `${COLOR_ICON[k]||'⭐'} 부족` };
   }
   return { ok: true };
 }
@@ -1507,7 +1519,7 @@ function renderUpgradeTab() {
   const gold = getGold(), mats = getMats();
 
   document.getElementById('sh-gold').textContent = gold.toLocaleString() + ' G 🪙';
-  const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${CICON[k]}${v}`).join(' ');
+  const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${COLOR_ICON[k]}${v}`).join(' ');
   document.getElementById('sh-mats-line').textContent = (matStr||'재료 없음') + (mats.rare>0 ? '  ⭐'+mats.rare : '');
 
   const container = document.getElementById('sh-upgrade');
@@ -1546,7 +1558,7 @@ function renderUpgradeTab() {
       for (const [k, need] of Object.entries(next.mat)) {
         const have = k === 'rare' ? (mats.rare||0) : (mats[k]||0);
         const ok = have >= need;
-        reqHtml += ` <span style="color:${ok?'#7ec850':'#ff5555'}">${CICON[k]||'⭐'}${need}</span>`;
+        reqHtml += ` <span style="color:${ok?'#7ec850':'#ff5555'}">${COLOR_ICON[k]||'⭐'}${need}</span>`;
       }
     }
 
