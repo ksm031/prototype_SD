@@ -360,6 +360,7 @@ let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 let steelSpawnTimer = 0; // ms until next steel block spawn
+let targetChainId = -1;  // 탭 시 강조할 체인 ID
 let pendingTimers = new Set();
 
 // Visual fx
@@ -632,6 +633,7 @@ function updateChar(dt) {
 //  EAT & CHAIN
 // ═══════════════════════════════════════
 function startEat(r, c) {
+  targetChainId = -1;
   char.sc = 1.5;
   const block = grid[r][c];
 
@@ -1246,6 +1248,32 @@ function drawGrid() {
       }
     }
   }
+
+  // ── Pass 4: 타겟 체인 하이라이트 ──
+  if (targetChainId !== -1) {
+    const pulse = 0.55 + 0.3 * Math.sin(Date.now() / 120);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const blk = grid[r][c];
+        if (!blk || blk.chainId !== targetChainId) continue;
+        const x  = GX + c * CELL;
+        const y  = blkY(r, c);
+        ctx.save();
+        ctx.globalAlpha = pulse * 0.55;
+        ctx.fillStyle = '#ffffff';
+        rRect(x + PAD, y + PAD, CELL - PAD * 2, CELL - PAD * 2, 6);
+        ctx.fill();
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 10;
+        rRect(x + PAD, y + PAD, CELL - PAD * 2, CELL - PAD * 2, 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
 }
 
 function drawChar() {
@@ -1450,6 +1478,7 @@ function handleTap(cx, cy) {
   char.moveSpd = d0 / char.travelMs * 16.67;
   char.state = 'moving';
   locked = true;
+  targetChainId = grid[row][col]?.chainId ?? -1;
 }
 
 canvas.addEventListener('click', e => handleTap(e.clientX, e.clientY));
