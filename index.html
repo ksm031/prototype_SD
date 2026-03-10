@@ -16,7 +16,7 @@
       font-family: 'Segoe UI', system-ui, sans-serif;
     }
     #app {
-      width: 360px; height: 640px;
+      width: 360px; height: 520px;
       position: absolute;
       transform-origin: top left;
       overflow: hidden;
@@ -139,7 +139,7 @@
   </div>
 
   <!-- GAME -->
-  <canvas id="gc" width="360" height="640"></canvas>
+  <canvas id="gc" width="360" height="520"></canvas>
 
   <!-- RESULT -->
   <div id="rs" class="screen">
@@ -164,7 +164,7 @@
 // ═══════════════════════════════════════
 //  RESIZE / SCALE
 // ═══════════════════════════════════════
-const AW = 360, AH = 640;
+const AW = 360, AH = 520;
 
 function resizeApp() {
   const scale = Math.min(window.innerWidth / AW, window.innerHeight / AH);
