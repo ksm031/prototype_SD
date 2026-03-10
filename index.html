@@ -780,16 +780,17 @@ function burstParticles(r, c, color) {
 //  RENDER
 // ═══════════════════════════════════════
 function rRect(x, y, w, h, rad) {
+  const [tl, tr, br, bl] = Array.isArray(rad) ? rad : [rad, rad, rad, rad];
   ctx.beginPath();
-  ctx.moveTo(x + rad, y);
-  ctx.lineTo(x + w - rad, y);
-  ctx.arcTo(x + w, y, x + w, y + rad, rad);
-  ctx.lineTo(x + w, y + h - rad);
-  ctx.arcTo(x + w, y + h, x + w - rad, y + h, rad);
-  ctx.lineTo(x + rad, y + h);
-  ctx.arcTo(x, y + h, x, y + h - rad, rad);
-  ctx.lineTo(x, y + rad);
-  ctx.arcTo(x, y, x + rad, y, rad);
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y);
+  ctx.arcTo(x + w, y, x + w, y + tr, tr);
+  ctx.lineTo(x + w, y + h - br);
+  ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+  ctx.lineTo(x + bl, y + h);
+  ctx.arcTo(x, y + h, x, y + h - bl, bl);
+  ctx.lineTo(x, y + tl);
+  ctx.arcTo(x, y, x + tl, y, tl);
   ctx.closePath();
 }
 
@@ -921,39 +922,100 @@ function drawGrid() {
       if (grid[r][c]) { const id = grid[r][c].chainId; csz[id] = (csz[id]||0) + 1; }
 
   const now = Date.now();
+  const PAD = 3;
+  const CR  = 9;  // corner radius
 
+  // 각 블록의 bobY를 미리 계산 (bridge에서도 사용)
+  function blkY(r, c) {
+    const blk = grid[r][c];
+    if (!blk) return GY + r * CELL;
+    const ly = GY + r * CELL;
+    const atRest = blk.animY === null || blk.animY >= ly - 0.5;
+    const chained = (csz[blk.chainId] || 0) >= 2;
+    const bob = (chained && atRest) ? Math.sin(now / 700 + blk.chainId * 0.9) * 1.8 : 0;
+    return (blk.animY !== null ? blk.animY : ly) + bob;
+  }
+  function atRest(r, c) {
+    const blk = grid[r][c];
+    if (!blk) return false;
+    const ly = GY + r * CELL;
+    return blk.animY === null || blk.animY >= ly - 0.5;
+  }
+  function sameChain(r, c, r2, c2) {
+    if (!inB(r2, c2)) return false;
+    const a = grid[r][c], b = grid[r2][c2];
+    if (!a || !b || a.chainId === -1) return false;
+    return a.chainId === b.chainId && (csz[a.chainId] || 0) >= 2;
+  }
+
+  // ── Pass 1: 빈 슬롯 ──
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const x  = GX + c * CELL;
-      const ly = GY + r * CELL;   // 논리 Y (빈 칸 슬롯용)
-      const pad = 3;
-
-      // Empty slot
+      const x = GX + c * CELL, ly = GY + r * CELL;
       ctx.fillStyle = 'rgba(255,255,255,0.03)';
-      rRect(x + pad, ly + pad, CELL - pad*2, CELL - pad*2, 6);
+      rRect(x + PAD, ly + PAD, CELL - PAD*2, CELL - PAD*2, 6);
       ctx.fill();
+    }
+  }
 
+  // ── Pass 2: 브릿지(블록 간 연결 채움) ──
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const blk = grid[r][c];
+      if (!blk) continue;
+      const x  = GX + c * CELL;
+      const y  = blkY(r, c);
+      const ar = atRest(r, c);
+      ctx.fillStyle = BCOLOR[blk.color];
+
+      // 오른쪽 브릿지
+      if (sameChain(r, c, r, c+1) && ar && atRest(r, c+1)) {
+        ctx.fillRect(x + CELL - PAD, y + PAD, PAD * 2, CELL - PAD * 2);
+      }
+      // 아래 브릿지
+      if (sameChain(r, c, r+1, c) && ar && atRest(r+1, c)) {
+        const y2 = blkY(r+1, c);
+        ctx.fillRect(x + PAD, y + CELL - PAD, CELL - PAD * 2, y2 + PAD - (y + CELL - PAD));
+      }
+      // 아래-오른쪽 코너 채움 (십자 교차점)
+      if (sameChain(r, c, r, c+1) && sameChain(r, c, r+1, c) && ar && atRest(r, c+1) && atRest(r+1, c)) {
+        const y2 = blkY(r+1, c);
+        ctx.fillRect(x + CELL - PAD, y + CELL - PAD, PAD * 2, y2 + PAD - (y + CELL - PAD));
+      }
+    }
+  }
+
+  // ── Pass 3: 블록 바디 ──
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
       const blk = grid[r][c];
       if (!blk) continue;
 
+      const x  = GX + c * CELL;
+      const y  = blkY(r, c);
       const bc = BCOLOR[blk.color];
       const bd = BDARK[blk.color];
-      const bl = BRIGHT[blk.color];
+      const blt = BRIGHT[blk.color];
       const chained = (csz[blk.chainId] || 0) >= 2;
 
-      // 낙하 애니메이션 Y + 체인 bob
-      const atRest = blk.animY === null || blk.animY >= ly - 0.5;
-      const bobY   = (chained && atRest)
-        ? Math.sin(now / 700 + blk.chainId * 0.9) * 1.8
-        : 0;
-      const y = (blk.animY !== null ? blk.animY : ly) + bobY;
+      const hasT = sameChain(r, c, r-1, c);
+      const hasB = sameChain(r, c, r+1, c);
+      const hasL = sameChain(r, c, r, c-1);
+      const hasR = sameChain(r, c, r, c+1);
 
-      // Block body
+      const radii = [
+        (hasT || hasL) ? 1 : CR,  // TL
+        (hasT || hasR) ? 1 : CR,  // TR
+        (hasB || hasR) ? 1 : CR,  // BR
+        (hasB || hasL) ? 1 : CR,  // BL
+      ];
+
+      // 블록 바디
       ctx.fillStyle = bc;
-      rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
+      rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
       ctx.fill();
 
-      // Legendary glow aura
+      // Legendary glow
       if (blk.color === 'legendary') {
         const glowAlpha = 0.18 + 0.12 * Math.sin(now / 300);
         ctx.save();
@@ -961,22 +1023,26 @@ function drawGrid() {
         ctx.shadowBlur = 18;
         ctx.strokeStyle = `rgba(255,224,102,${glowAlpha + 0.4})`;
         ctx.lineWidth = 2.5;
-        rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
         ctx.stroke();
         ctx.restore();
       }
 
-      // Top shine
-      ctx.fillStyle = bl;
-      rRect(x + pad, y + pad, CELL - pad*2, 7, [8, 8, 0, 0]);
-      ctx.fill();
+      // 상단 광택 (위에 연결된 블록 없을 때만)
+      if (!hasT) {
+        ctx.fillStyle = blt;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, 7, [radii[0], radii[1], 0, 0]);
+        ctx.fill();
+      }
 
-      // Bottom shadow
-      ctx.fillStyle = bd;
-      rRect(x + pad, y + CELL - pad - 6, CELL - pad*2, 6, [0, 0, 8, 8]);
-      ctx.fill();
+      // 하단 그림자 (아래에 연결된 블록 없을 때만)
+      if (!hasB) {
+        ctx.fillStyle = bd;
+        rRect(x + PAD, y + CELL - PAD - 6, CELL - PAD*2, 6, [0, 0, radii[2], radii[3]]);
+        ctx.fill();
+      }
 
-      // Legendary star icon
+      // Legendary 별
       if (blk.color === 'legendary') {
         ctx.save();
         ctx.font = 'bold 22px system-ui';
@@ -986,26 +1052,13 @@ function drawGrid() {
         ctx.restore();
       }
 
-      // Chain border — pulse 효과
+      // 체인 테두리 펄스 (연결 형태 반영)
       if (chained) {
         const pulse = 0.3 + 0.18 * Math.sin(now / 380 + blk.chainId * 1.1);
         ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
         ctx.lineWidth = 2;
-        rRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2, 8);
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
         ctx.stroke();
-
-        const cnt = csz[blk.chainId];
-        if (cnt >= 3) {
-          ctx.fillStyle = 'rgba(0,0,0,0.55)';
-          ctx.beginPath();
-          ctx.arc(x + CELL - pad - 2, y + pad + 2, 8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 9px system-ui';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(cnt, x + CELL - pad - 2, y + pad + 2.5);
-        }
       }
     }
   }
