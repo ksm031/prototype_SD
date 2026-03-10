@@ -864,10 +864,20 @@ function shake(amt, fr) { shakeAmt = amt; shakeFr = fr; }
 function haptic(ms = 10) { navigator.vibrate?.(ms); }
 
 function popup(x, y, text, color, big) {
-  popups.push({ x, y, text, color, life: 1.2, vy: -1.0, big: !!big });
+  const lineH = big ? 48 : 26;
+  let startY = y;
+  for (const p of popups) {
+    if (Math.abs(p.x - x) < 72) startY = Math.min(startY, p.y - lineH);
+  }
+  popups.push({ x, y: startY, text, color, life: 1.2, vy: -1.0, big: !!big });
 }
 function bigPopup(text, color) {
-  popups.push({ x: AW / 2, y: AH / 2 - 70, text, color, life: 1.8, vy: -0.4, big: true });
+  const baseY = AH / 2 - 70;
+  let startY = baseY;
+  for (const p of popups) {
+    if (Math.abs(p.x - AW / 2) < 120) startY = Math.min(startY, p.y - 52);
+  }
+  popups.push({ x: AW / 2, y: startY, text, color, life: 1.8, vy: -0.4, big: true });
 }
 
 function burstStar(x, y) {
