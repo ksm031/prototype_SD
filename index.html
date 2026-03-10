@@ -243,7 +243,7 @@ const STATS = {
       { value:22, gold:1800, mat:{ blue:70, rare:8 } },
     ]
   },
-  vitality: { name:'생명력', icon:'🛡️', desc:'HP 드레인 배율 (낮을수록 좋음)',
+  vitality: { name:'생명력', icon:'🛡️', desc:'HP 드레인 저항 (높을수록 좋음)',
     tiers:[
       { value:1.00 },
       { value:0.82, gold:300, mat:{ green:15 } },
@@ -251,9 +251,17 @@ const STATS = {
       { value:0.50, gold:2000, mat:{ green:70, rare:10 } },
     ]
   },
+  maxhp: { name:'최대 체력', icon:'❤️', desc:'최대 HP (회복량도 비례 증가)',
+    tiers:[
+      { value:100 },
+      { value:130, gold:400,  mat:{ green:20 } },
+      { value:170, gold:1000, mat:{ green:50, rare:5 } },
+      { value:220, gold:2500, mat:{ green:90, rare:15 } },
+    ]
+  },
 };
 
-const DEFAULT_STAT_LEVELS = { recovery:0, impact:0, speed:0, vitality:0 };
+const DEFAULT_STAT_LEVELS = { recovery:0, impact:0, speed:0, vitality:0, maxhp:0 };
 const getStatLevels  = () => Object.assign({}, DEFAULT_STAT_LEVELS, JSON.parse(localStorage.getItem(SK.stats)||'{}'));
 const saveStatLevels = v  => localStorage.setItem(SK.stats, JSON.stringify(v));
 function getStatLevel(id)       { return getStatLevels()[id] || 0; }
@@ -444,8 +452,9 @@ function initChar() {
     x: BASE_X, y: BASE_Y,
     tx: BASE_X, ty: BASE_Y,
     state: 'idle',
-    hp: 100, maxHp: 100,
-    hpPerBlock:  getStatValue('recovery'),
+    maxHp: getStatValue('maxhp'),
+    hp:    getStatValue('maxhp'),
+    hpPerBlock:  getStatValue('recovery') * getStatValue('maxhp') / 100,
     impactRange: getStatValue('impact'),
     chainDelay:  getStatValue('speed'),
     drainMult:   getStatValue('vitality'),
@@ -1202,15 +1211,18 @@ function renderUpgradeTab() {
     const chk  = max ? { ok: false, reason: 'MAX' } : canUpgradeStat(id);
 
     // 수치 표시: 연쇄속도는 낮을수록 좋으니 방향 표현 달리함
-    const isSpeed   = id === 'speed';
+    const isSpeed    = id === 'speed';
     const isVitality = id === 'vitality';
+    const isMaxhp    = id === 'maxhp';
     let curVal  = isVitality ? Math.round((1 - cur.value) * 100) + '% 저항'
                 : isSpeed    ? cur.value + 'ms'
+                : isMaxhp    ? cur.value + ' HP'
                 : cur.value;
     let nextVal = '';
     if (next) {
       nextVal = isVitality ? Math.round((1 - next.value) * 100) + '% 저항'
               : isSpeed    ? next.value + 'ms'
+              : isMaxhp    ? next.value + ' HP'
               : next.value;
     }
 
