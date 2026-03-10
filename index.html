@@ -950,7 +950,7 @@ function loop(ts) {
   // HP 드레인 (실시간, slowFactor 무관 elapsed 사용)
   if (gstate === 'playing') {
     gameElapsed += raw;
-    const drainRate = (4.5 + gameElapsed / 1000 * 0.06) * char.drainMult;
+    const drainRate = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
   }
