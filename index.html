@@ -385,7 +385,7 @@ function showMain() {
 //  GRID
 // ═══════════════════════════════════════
 function mkBlock(color) {
-  if (!color && Math.random() < 0.007) color = 'legendary';
+  if (!color && Math.random() < 0.002) color = 'legendary';
   return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1, animY: null, fallV: 0 };
 }
 
