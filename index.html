@@ -675,6 +675,9 @@ let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 let steelSpawnTimer = 0; // ms until next steel block spawn
+let timebombSpawnTimer = 0; // ms until next timebomb block spawn
+const TIMEBOMB_INTERVALS = [45000, 35000, 25000, 15000]; // per phase
+const TIMEBOMB_FUSE = 8000; // ms before explosion
 let targetChainId = -1;  // 탭 시 강조할 체인 ID
 let pendingTimers = new Set();
 
@@ -1152,6 +1155,46 @@ function spawnSteel() {
   buildChains();
   shake(4, 6);
   popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, '⚙️', '#aab4c2', true);
+}
+
+// ═══════════════════════════════════════
+//  TIMEBOMB BLOCKS
+// ═══════════════════════════════════════
+function spawnTimebomb() {
+  // 이미 보드에 시한폭탄이 2개 이상이면 스킵
+  let count = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c]?.timebomb) count++;
+  if (count >= 2) return;
+
+  const candidates = [];
+  for (let r = 1; r < ROWS - 1; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item && !grid[r][c].timebomb && grid[r][c].color !== 'legendary')
+        candidates.push({ r, c });
+  if (!candidates.length) return;
+
+  const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
+  const color = grid[r][c].color; // 기존 색 유지 (체인 참여 가능)
+  grid[r][c] = { color, timebomb: true, timer: TIMEBOMB_FUSE, chainId: grid[r][c].chainId, hp: 1, animY: grid[r][c].animY, fallV: 0 };
+  buildChains();
+  shake(3, 5);
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, '💣', '#ff4444', true);
+}
+
+function explodeTimebomb(r, c) {
+  if (!grid[r][c]) return;
+  burstParticles(r, c, '#ff2200');
+  grid[r][c] = null;
+  const dmg = 15;
+  char.hp = Math.max(0, char.hp - dmg);
+  shake(10, 12);
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, `-${dmg}💥`, '#ff2200', true);
+  ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 3, life: 0.8 });
+  flashes.push({ x: GX + c * CELL - CELL, y: GY + r * CELL - CELL, w: CELL * 3, h: CELL * 3, color: '#ff220055', life: 0.4 });
+  buildChains();
+  if (char.hp <= 0) endGame('hp');
 }
 
 // ═══════════════════════════════════════
@@ -1638,6 +1681,28 @@ function drawGrid() {
         ctx.restore();
       }
 
+      // Timebomb block — pulsing red border + countdown
+      if (blk.timebomb) {
+        const secLeft = Math.ceil(blk.timer / 1000);
+        const urgency = 1 - blk.timer / TIMEBOMB_FUSE;
+        const pulse = 0.5 + 0.5 * Math.sin(now / (300 - urgency * 200));
+        ctx.save();
+        ctx.shadowColor = '#ff2200';
+        ctx.shadowBlur = 8 + urgency * 16;
+        ctx.strokeStyle = `rgba(255,${Math.round(34 + (1-urgency)*100)},0,${0.6 + pulse * 0.4})`;
+        ctx.lineWidth = 2.5 + urgency * 2;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.font = `bold ${urgency > 0.7 ? 16 : 14}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = urgency > 0.5 ? '#ff2200' : '#ffffff';
+        ctx.globalAlpha = urgency > 0.7 ? (0.7 + pulse * 0.3) : 1.0;
+        ctx.fillText(secLeft, x + CELL / 2, y + CELL / 2);
+        ctx.restore();
+      }
+
       // Steel block — crosshatch + icon
       if (blk.steel) {
         ctx.save();
@@ -1904,6 +1969,23 @@ function loop(ts) {
       steelSpawnTimer = aph[Math.min(currentPhase, aph.length - 1)].steelInterval;
     }
 
+    // 시한폭탄 블럭 스폰 타이머
+    timebombSpawnTimer -= raw;
+    if (timebombSpawnTimer <= 0) {
+      spawnTimebomb();
+      timebombSpawnTimer = TIMEBOMB_INTERVALS[Math.min(currentPhase, TIMEBOMB_INTERVALS.length - 1)];
+    }
+
+    // 시한폭탄 카운트다운
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        const blk = grid[r][c];
+        if (blk?.timebomb) {
+          blk.timer -= raw;
+          if (blk.timer <= 0) explodeTimebomb(r, c);
+        }
+      }
+
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
     let drainMultFinal = char.drainMult * pulseMult;
     // 방어의 오브: HP < 30% 시 드레인 -30%
@@ -2050,6 +2132,7 @@ function startNode(act, nodeIdx) {
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
   steelSpawnTimer = activePhaseDefs[0].steelInterval;
+  timebombSpawnTimer = TIMEBOMB_INTERVALS[0];
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
