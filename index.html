@@ -181,7 +181,7 @@ window.addEventListener('resize', resizeApp);
 // ═══════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════
-const COLS = 5, ROWS = 6, CELL = 56;
+const COLS = 6, ROWS = 7, CELL = 50;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 64;                         // grid offset Y
 const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
@@ -385,7 +385,7 @@ function showMain() {
 //  GRID
 // ═══════════════════════════════════════
 function mkBlock(color) {
-  if (!color && Math.random() < 0.03) color = 'legendary';
+  if (!color && Math.random() < 0.007) color = 'legendary';
   return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1, animY: null, fallV: 0 };
 }
 
