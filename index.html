@@ -527,8 +527,6 @@ function startEat(r, c) {
   const chain = getChain(block.chainId);
 
   if (chain.length === 1) {
-    // Lonely block — penalty
-    char.hp = Math.max(0, char.hp - 10);
     removeBlock(r, c);
     sBlocks++;
     sGold += 10;
