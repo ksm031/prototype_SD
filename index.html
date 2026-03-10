@@ -242,9 +242,9 @@ const COLS = 6, ROWS = 7, CELL = 50;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 64;                         // grid offset Y
 const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
-const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#7c6fcd', steel: '#5a6473' };
-const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#3d3370', steel: '#2e3440' };
-const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#c4b8f5', steel: '#aab4c2' };
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#e05c00', steel: '#5a6473' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#8b3900', steel: '#2e3440' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#ffaa55', steel: '#aab4c2' };
 
 let colorCount = 3;
 let COLORS = ALL_COLORS.slice(0, colorCount);
@@ -318,6 +318,173 @@ const SPR = {};
   }
 })();
 
+// ── 로케일 (locale.csv 내용 반영) ─────────────────────────
+const LOCALE_DATA = `id,ko,en
+title_main,CHOMP CHAIN,CHOMP CHAIN
+subtitle_main,블록을 탭해 캐릭터를 먹여라!,Tap blocks to feed your character!
+btn_play,🎮 플레이,🎮 Play
+btn_enhance,⚗️ 강화,⚗️ Enhance
+btn_back,← 돌아가기,← Back
+btn_reset_save,🗑️ 저장 초기화,🗑️ Reset Save
+btn_new_run,🔄 새 런 시작,🔄 New Run
+btn_to_main,🏠 메인으로,🏠 To Main
+btn_cancel,취소,Cancel
+btn_upgrade,업그레이드,Upgrade
+btn_max,✅ MAX,✅ MAX
+shop_title,강화,Enhance
+shop_tab_upgrade,강화,Upgrade
+shop_tab_challenges,도전,Challenges
+shop_tab_deco,꾸미기,Cosmetics
+shop_deco_locked,Lv.4 달성 시 꾸미기 해금됩니다,Unlock cosmetics at Level 4
+popup_reset_title,🗑️ 초기화,🗑️ Reset
+popup_reset_desc,삭제할 데이터를 선택해주세요,Select data to delete
+btn_reset_progress,💰 강화 초기화,💰 Reset Upgrades
+btn_reset_all,💀 전체 초기화,💀 Reset All
+stat_longest_survival,⏳ 최장 생존,⏳ Best Survival
+stat_gold,💰 보유 골드,💰 Gold
+stat_materials,🧪 재료,🧪 Materials
+result_title_clear,🏆 런 클리어!,🏆 Run Clear!
+result_title_end,세션 종료!,Session Over!
+result_node_reached,📍 도달 노드,📍 Node Reached
+result_survival_time,⏳ 생존 시간,⏳ Survival Time
+result_blocks_destroyed,💥 소멸 블록,💥 Blocks Destroyed
+result_max_combo,⚡ 최대 연쇄,⚡ Max Combo
+result_artifacts_collected,🎁 수집 아티팩트,🎁 Artifacts Collected
+result_gold_earned,💰 획득 골드,💰 Gold Earned
+result_best_time,🏆 최장 생존,🏆 Best Time
+result_materials_earned,🧪 획득 재료,🧪 Materials Earned
+result_achievements,🏅 도전 과제 달성!,🏅 Achievements Unlocked!
+artifact_screen_title,🎁 아티팩트 선택,🎁 Artifact Selection
+artifact_screen_subtitle,런 종료까지 유지됩니다,Lasts until end of run
+artifact_node_clear,노드 클리어!,Node Clear!
+upgrade_lack_gold,골드 부족,Insufficient Gold
+upgrade_max_reached,MAX,MAX
+act_label_1,ACT 1 — 초원 🌿,ACT 1 — Grasslands 🌿
+act_label_2,ACT 2 — 화산 🌋,ACT 2 — Volcano 🌋
+act_label_3,ACT 3 — 혼돈 🌀,ACT 3 — Chaos 🌀
+popup_hunger,🍽️ HUNGER!,🍽️ HUNGER!
+popup_overflow,💦 OVERFLOW,💦 OVERFLOW
+popup_bang,🧨 BANG!,🧨 BANG!
+popup_boom,💣 BOOM!!,💣 BOOM!!
+popup_perfect,PERFECT!!,PERFECT!!
+popup_game_over,GAME OVER,GAME OVER
+popup_clear,🏆 CLEAR!!,🏆 CLEAR!!
+popup_full_heal,♾️ FULL HEAL!,♾️ FULL HEAL!
+art_first_aid_name,응급 키트,First Aid Kit
+art_first_aid_desc,블록당 HP 회복 +1.5,HP recovery +1.5 per block
+art_attract_core_name,인력 코어,Attract Core
+art_attract_core_desc,연쇄 충격 범위 +1,Impact range +1
+art_chain_gear_name,연쇄 기어,Chain Gear
+art_chain_gear_desc,연쇄 간격 -10ms,Chain speed -10ms
+art_sprint_boots_name,질주의 신발,Sprint Boots
+art_sprint_boots_desc,이동 시간 -50ms,Movement time -50ms
+art_gold_finger_name,황금 손가락,Golden Finger
+art_gold_finger_desc,블록당 골드 +3,Gold +3 per block
+art_vitality_src_name,활력의 근원,Vitality Source
+art_vitality_src_desc,최대 HP +20,Max HP +20
+art_life_sprout_name,생명의 새싹,Life Sprout
+art_life_sprout_desc,HP 드레인 -8%,HP drain -8%
+art_crystal_shard_name,결정 파편,Crystal Shard
+art_crystal_shard_desc,전설 블록 출현율 +0.15%\, 전설 파괴 시 HP +10%,Legendary spawn +0.15%\, heal +10% on destroy
+art_glass_cannon_name,유리 대포,Glass Cannon
+art_glass_cannon_desc,최대 HP -30\, 골드/블록 +8\, 충격 범위 +1,Max HP -30\, Gold +8/block\, Range +1
+art_aim_lens_name,조준 렌즈,Aim Lens
+art_aim_lens_desc,콤보 5+ 시 추가 골드 +10,Extra gold +10 at 5+ combo
+art_hunger_name,연쇄 배고픔,Chain Hunger
+art_hunger_desc,누적 20콤보마다 충격 범위 +1 (영구),Range +1 per 20 cumulative combo (permanent)
+art_resonance_name,공명,Resonance
+art_resonance_desc,보유 아티팩트 수×2ms씩 연쇄 간격 감소 (최대 -16ms),Chain speed -2ms per artifact owned (max -16ms)
+art_defense_orb_name,방어의 오브,Defense Orb
+art_defense_orb_desc,HP < 30% 시 드레인 -30% + 블록 회복 +50%,Drain -30% and heal +50% when HP < 30%
+art_bomb_seed_name,폭발 씨앗,Bomb Seed
+art_bomb_seed_desc,폭탄 발동 조건 -5콤보,Bomb threshold -5 combo
+art_firework_amp_name,불꽃 증폭기,Firework Amplifier
+art_firework_amp_desc,불꽃 발동 조건 -4콤보,Firework threshold -4 combo
+art_chain_overflow_name,연쇄 범람,Chain Overflow
+art_chain_overflow_desc,10콤보 이상 시 충격 범위 밖 블록 1개 추가 파괴,Destroy 1 extra block outside range at 10+ combo
+art_steel_breaker_name,강철 분쇄기,Steel Breaker
+art_steel_breaker_desc,강철 블록을 일반처럼 파괴,Destroy steel blocks normally
+art_blood_pact_name,혈액 계약,Blood Pact
+art_blood_pact_desc,드레인 +30%\, 블록 회복 ×2,Drain +30%\, heal ×2
+art_legend_light_name,전설의 빛,Legend Light
+art_legend_light_desc,전설 출현율 ×3\, 재료 +2,Legendary spawn ×3\, materials +2
+art_time_crystal_name,시간 결정체,Time Crystal
+art_time_crystal_desc,각 페이즈 +20초\, 페이즈 전환 시 HP +30 추가 회복,Phase +20s\, heal +30 on phase change
+art_storm_catalyst_name,폭풍 촉매,Storm Catalyst
+art_storm_catalyst_desc,폭탄 반경 +2 (5×5→9×9),Bomb radius +2 (5×5→9×9)
+art_chain_amp_name,연쇄 증폭기,Chain Amplifier
+art_chain_amp_desc,체인 5개마다 HP +5% 추가 회복 (충격 범위 비례),Heal +5% per 5 chain (scales with impact range)
+art_chaos_force_name,혼돈의 힘,Chaos Force
+art_chaos_force_desc,HYPER 진입 시 HP 전체 회복,Full HP heal on HYPER entry
+art_emperor_seal_name,황제의 인장,Emperor's Seal
+art_emperor_seal_desc,골드 획득 ×1.5,Gold ×1.5
+art_magic_orb_name,마력 수정구,Magic Orb
+art_magic_orb_desc,충격 범위 +2\, 연쇄 간격 -15ms,Range +2\, chain speed -15ms
+art_butterfly_name,변화의 날개,Wings of Change
+art_butterfly_desc,페이즈 전환마다 HP +35 회복,Heal +35 on each phase change
+art_rainbow_core_name,무지개 코어,Rainbow Core
+art_rainbow_core_desc,충격 범위 +3\, 연쇄 간격 -20ms\, 회복 +3,Range +3\, chain -20ms\, heal +3
+art_eternal_heart_name,영원의 심장,Eternal Heart
+art_eternal_heart_desc,드레인 ×0.3\, 최대 HP +50,Drain ×0.3\, max HP +50
+art_supernova_name,초신성,Supernova
+art_supernova_desc,15초마다 자동 폭탄 발동,Auto bomb every 15s
+art_conqueror_name,정복자의 왕관,Conqueror's Crown
+art_conqueror_desc,모든 수치 10% 향상\, 골드 ×2,All stats +10%\, gold ×2
+ach_first_run_name,첫 발걸음,First Steps
+ach_first_run_desc,런 1번 시작,Start 1 run
+ach_act1_clear_name,탐험가,Explorer
+ach_act1_clear_desc,ACT 1 클리어 (1-BOSS 생존),Clear ACT 1
+ach_act2_clear_name,도전자,Challenger
+ach_act2_clear_desc,ACT 2 클리어 (2-BOSS 생존),Clear ACT 2
+ach_final_clear_name,정복자,Conqueror
+ach_final_clear_desc,FINAL BOSS 클리어,Beat FINAL BOSS
+ach_combo_god_name,연쇄의 신,Combo God
+ach_combo_god_desc,50콤보 달성,Reach 50 combo
+ach_legend_hunter_name,전설 수집가,Legend Hunter
+ach_legend_hunter_desc,전설 블록 5개 획득,Collect 5 legendary blocks
+ach_artifact_fan_name,아티팩트 덕후,Artifact Enthusiast
+ach_artifact_fan_desc,1런에 아티팩트 8개 수집,Collect 8 artifacts in 1 run
+ach_full_upgrade1_name,완전 강화,Full Upgrade
+ach_full_upgrade1_desc,스탯 1개 풀강화,Max out 1 stat
+ach_full_upgrade_all_name,모두 강화,Fully Upgraded
+ach_full_upgrade_all_desc,전 스탯 풀강화,Max out all stats
+ach_block_king_name,블록 파괴왕,Block King
+ach_block_king_desc,누적 블록 1000개 파괴,Destroy 1000 blocks total
+ach_hyper_reach_name,HYPER 도달,HYPER Reached
+ach_hyper_reach_desc,HYPER 단계 진입,Enter HYPER phase
+ach_perfect_node_name,완벽한 생존,Perfect Survival
+ach_perfect_node_desc,HP 100 유지로 노드 클리어,Clear node with 100+ HP
+ach_ten_runs_name,반복의 힘,Repeater
+ach_ten_runs_desc,10런 플레이,Play 10 runs
+ach_five_min_name,5분 생존,5 Minute Survivor
+ach_five_min_desc,단일 노드에서 5분 생존,Survive 5 min in single node
+ach_legend_art_name,최강 빌드,Ultimate Build
+ach_legend_art_desc,전설 아티팩트 보유,Own a legendary artifact`;
+
+// 로케일 파싱 및 조회 함수
+let _currentLang = 'ko';
+const _locale = (() => {
+  const map = {};
+  const lines = LOCALE_DATA.trim().split('\n');
+  const headers = lines[0].split(','); // id,ko,en
+  for (let i = 1; i < lines.length; i++) {
+    // 이스케이프된 콤마(\,)를 처리
+    const cols = lines[i].replace(/\\,/g, '\u0000').split(',');
+    const id = cols[0];
+    map[id] = {};
+    for (let j = 1; j < headers.length; j++) {
+      map[id][headers[j]] = (cols[j] || '').replace(/\u0000/g, ',');
+    }
+  }
+  return map;
+})();
+
+function t(id, lang) {
+  const entry = _locale[id];
+  if (!entry) return id;
+  return entry[lang || _currentLang] || entry['ko'] || id;
+}
+
 const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats', achieve: 'cc_achievements', runprog: 'cc_run_progress' };
 const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
 
@@ -350,76 +517,61 @@ const NODE_DEFS = [
 // ── 아티팩트 풀 (30종) ───────────────────────────────────
 const ARTIFACT_POOL = [
   // ─ 일반 (16종) ─
-  { id:'first_aid',     name:'응급 키트',      icon:'🩹', rarity:'common',    desc:'블록당 HP 회복 +1.5',         apply: c => { c.hpPerBlock += 1.5 * c.maxHp / 100; } },
-  { id:'attract_core',  name:'인력 코어',      icon:'🧲', rarity:'common',    desc:'연쇄 충격 범위 +1',           apply: c => { c.impactRange += 1; } },
-  { id:'chain_gear',    name:'연쇄 기어',      icon:'⚙️', rarity:'common',    desc:'연쇄 간격 -10ms',             apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 10); } },
-  { id:'sprint_boots',  name:'질주의 신발',    icon:'🏃', rarity:'common',    desc:'이동 시간 -50ms',             apply: c => { c.travelMs = Math.max(80, c.travelMs - 50); } },
-  { id:'gold_finger',   name:'황금 손가락',    icon:'💰', rarity:'common',    desc:'블록당 골드 +3',              apply: c => { c.goldPerBlock += 3; } },
-  { id:'vitality_src',  name:'활력의 근원',    icon:'❤️', rarity:'common',    desc:'최대 HP +20',                 apply: c => { c.maxHp += 20; c.hp = Math.min(c.maxHp, c.hp + 20); } },
-  { id:'life_sprout',   name:'생명의 새싹',    icon:'🌿', rarity:'common',    desc:'HP 드레인 -8%',               apply: c => { c.drainMult *= 0.92; } },
-  { id:'crystal_shard', name:'결정 파편',      icon:'💎', rarity:'common',    desc:'전설 블록 출현율 +0.15%',     apply: c => { c.legendSpawnRate += 0.0015; } },
-  { id:'alch_flask',    name:'연금술 플라스크',icon:'🧪', rarity:'common',    desc:'재료 드롭 기준 -1 (최소 2)',  apply: c => { c.matDropEvery = Math.max(2, c.matDropEvery - 1); } },
-  { id:'aim_lens',      name:'조준 렌즈',      icon:'🎯', rarity:'common',    desc:'콤보 5+ 시 추가 골드 +10',    apply: c => { c.comboGoldBonus += 10; } },
-  { id:'energy_pack',   name:'에너지 팩',      icon:'🔋', rarity:'common',    desc:'페이즈 전환 시 HP +20 회복',  apply: c => { c.phaseHealAmt += 20; } },
-  { id:'chain_boost',   name:'연쇄 가속기',    icon:'🌀', rarity:'common',    desc:'연쇄 간격 추가 -5ms',         apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 5); } },
-  { id:'defense_orb',   name:'방어의 오브',    icon:'🛡️', rarity:'common',    desc:'HP < 30% 시 드레인 -30%',     apply: c => { c.lowHpShield = true; } },
-  { id:'bomb_seed',     name:'폭발 씨앗',      icon:'💥', rarity:'common',    desc:'폭탄 발동 조건 -5콤보',       apply: c => { c.bombThreshold = Math.max(8, c.bombThreshold - 5); } },
-  { id:'firework_amp',  name:'불꽃 증폭기',    icon:'🧨', rarity:'common',    desc:'불꽃 발동 조건 -4콤보',       apply: c => { c.fireworkThreshold = Math.max(4, c.fireworkThreshold - 4); } },
-  { id:'lucky_seal',    name:'행운의 각인',    icon:'🔶', rarity:'common',    desc:'아이템 발동 조건 -2콤보',     apply: c => { c.bombThreshold = Math.max(8, c.bombThreshold - 2); c.fireworkThreshold = Math.max(4, c.fireworkThreshold - 2); } },
+  { id:'first_aid',     get name(){ return t('art_first_aid_name'); },     icon:'🩹', rarity:'common',    get desc(){ return t('art_first_aid_desc'); },     apply: c => { c.hpPerBlock += 1.5 * c.maxHp / 100; } },
+  { id:'attract_core',  get name(){ return t('art_attract_core_name'); },  icon:'🧲', rarity:'common',    get desc(){ return t('art_attract_core_desc'); },  apply: c => { c.impactRange += 1; } },
+  { id:'chain_gear',    get name(){ return t('art_chain_gear_name'); },    icon:'⚙️', rarity:'common',    get desc(){ return t('art_chain_gear_desc'); },    apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 10); } },
+  { id:'sprint_boots',  get name(){ return t('art_sprint_boots_name'); },  icon:'🏃', rarity:'common',    get desc(){ return t('art_sprint_boots_desc'); },  apply: c => { c.travelMs = Math.max(80, c.travelMs - 50); } },
+  { id:'gold_finger',   get name(){ return t('art_gold_finger_name'); },   icon:'💰', rarity:'common',    get desc(){ return t('art_gold_finger_desc'); },   apply: c => { c.goldPerBlock += 3; } },
+  { id:'vitality_src',  get name(){ return t('art_vitality_src_name'); },  icon:'❤️', rarity:'common',    get desc(){ return t('art_vitality_src_desc'); },  apply: c => { c.maxHp += 20; c.hp = Math.min(c.maxHp, c.hp + 20); } },
+  { id:'life_sprout',   get name(){ return t('art_life_sprout_name'); },   icon:'🌿', rarity:'common',    get desc(){ return t('art_life_sprout_desc'); },   apply: c => { c.drainMult *= 0.92; } },
+  { id:'crystal_shard', get name(){ return t('art_crystal_shard_name'); }, icon:'💎', rarity:'common',    get desc(){ return t('art_crystal_shard_desc'); }, apply: c => { c.legendSpawnRate += 0.0015; c.legendHeal = Math.max(c.legendHeal, 0.10); } },
+  { id:'glass_cannon',  get name(){ return t('art_glass_cannon_name'); },  icon:'🔫', rarity:'common',    get desc(){ return t('art_glass_cannon_desc'); },  apply: c => { c.maxHp = Math.max(30, c.maxHp - 30); c.hp = Math.min(c.maxHp, c.hp); c.goldPerBlock += 8; c.impactRange += 1; } },
+  { id:'aim_lens',      get name(){ return t('art_aim_lens_name'); },      icon:'🎯', rarity:'common',    get desc(){ return t('art_aim_lens_desc'); },      apply: c => { c.comboGoldBonus += 10; } },
+  { id:'hunger',        get name(){ return t('art_hunger_name'); },        icon:'🍽️', rarity:'common',    get desc(){ return t('art_hunger_desc'); },        apply: c => { c.hungerActive = true; c.hungerCombo = 0; } },
+  { id:'resonance',     get name(){ return t('art_resonance_name'); },     icon:'🎵', rarity:'common',    get desc(){ return t('art_resonance_desc'); },     apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 2 * Math.min(8, runState.artifacts.length)); } },
+  { id:'defense_orb',   get name(){ return t('art_defense_orb_name'); },   icon:'🛡️', rarity:'common',    get desc(){ return t('art_defense_orb_desc'); },   apply: c => { c.lowHpShield = true; c.lowHpHealBonus = Math.max(c.lowHpHealBonus, 0.5); } },
+  { id:'bomb_seed',     get name(){ return t('art_bomb_seed_name'); },     icon:'💥', rarity:'common',    get desc(){ return t('art_bomb_seed_desc'); },     apply: c => { c.bombThreshold = Math.max(8, c.bombThreshold - 5); } },
+  { id:'firework_amp',  get name(){ return t('art_firework_amp_name'); },  icon:'🧨', rarity:'common',    get desc(){ return t('art_firework_amp_desc'); },  apply: c => { c.fireworkThreshold = Math.max(4, c.fireworkThreshold - 4); } },
+  { id:'chain_overflow',get name(){ return t('art_chain_overflow_name'); },icon:'💦', rarity:'common',    get desc(){ return t('art_chain_overflow_desc'); },apply: c => { c.chainOverflow = true; } },
   // ─ 희귀 (10종) ─
-  { id:'steel_breaker', name:'강철 분쇄기',    icon:'⚔️', rarity:'rare',      desc:'강철 블록을 일반처럼 파괴',   apply: c => { c.steelBreaker = true; } },
-  { id:'blood_pact',    name:'혈액 계약',      icon:'🩸', rarity:'rare',      desc:'드레인 +30%, 블록 회복 ×2',  apply: c => { c.drainMult *= 1.3; c.hpPerBlock *= 2; } },
-  { id:'legend_light',  name:'전설의 빛',      icon:'🌟', rarity:'rare',      desc:'전설 출현율 ×3, 재료 +2',    apply: c => { c.legendSpawnRate *= 3; c.legendMatBonus += 2; } },
-  { id:'time_crystal',  name:'시간 결정체',    icon:'⏱️', rarity:'rare',      desc:'각 페이즈 지속 시간 +20초',   apply: c => { c.phaseTimeBonus += 20; } },
-  { id:'storm_catalyst',name:'폭풍 촉매',      icon:'🎇', rarity:'rare',      desc:'폭탄 반경 +2 (5×5→9×9)',     apply: c => { c.bombRadius += 2; } },
-  { id:'chain_amp',     name:'연쇄 증폭기',    icon:'💫', rarity:'rare',      desc:'체인 5개마다 HP +5 추가 회복',apply: c => { c.chainHealBonus += 5 * c.maxHp / 100; } },
-  { id:'chaos_force',   name:'혼돈의 힘',      icon:'🌪️', rarity:'rare',      desc:'HYPER 진입 시 HP 전체 회복', apply: c => { c.hyperHeal = true; } },
-  { id:'emperor_seal',  name:'황제의 인장',    icon:'👑', rarity:'rare',      desc:'골드 획득 ×1.5',              apply: c => { c.goldMult *= 1.5; } },
-  { id:'magic_orb',     name:'마력 수정구',    icon:'🔮', rarity:'rare',      desc:'충격 범위 +2, 연쇄 간격 -15ms', apply: c => { c.impactRange += 2; c.chainDelay = Math.max(10, c.chainDelay - 15); } },
-  { id:'butterfly',     name:'변화의 날개',    icon:'🦋', rarity:'rare',      desc:'페이즈 전환마다 HP +35 회복', apply: c => { c.phaseHealAmt += 35; } },
+  { id:'steel_breaker', get name(){ return t('art_steel_breaker_name'); }, icon:'⚔️', rarity:'rare',      get desc(){ return t('art_steel_breaker_desc'); }, apply: c => { c.steelBreaker = true; } },
+  { id:'blood_pact',    get name(){ return t('art_blood_pact_name'); },    icon:'🩸', rarity:'rare',      get desc(){ return t('art_blood_pact_desc'); },    apply: c => { c.drainMult *= 1.3; c.hpPerBlock *= 2; } },
+  { id:'legend_light',  get name(){ return t('art_legend_light_name'); },  icon:'🌟', rarity:'rare',      get desc(){ return t('art_legend_light_desc'); },  apply: c => { c.legendSpawnRate *= 3; c.legendMatBonus += 2; } },
+  { id:'time_crystal',  get name(){ return t('art_time_crystal_name'); },  icon:'⏱️', rarity:'rare',      get desc(){ return t('art_time_crystal_desc'); },  apply: c => { c.phaseTimeBonus += 20; c.phaseHealAmt += 30; } },
+  { id:'storm_catalyst',get name(){ return t('art_storm_catalyst_name'); },icon:'🎇', rarity:'rare',      get desc(){ return t('art_storm_catalyst_desc'); },apply: c => { c.bombRadius += 2; } },
+  { id:'chain_amp',     get name(){ return t('art_chain_amp_name'); },     icon:'💫', rarity:'rare',      get desc(){ return t('art_chain_amp_desc'); },     apply: c => { c.chainHealBonus += 5 * c.maxHp / 100; } },
+  { id:'chaos_force',   get name(){ return t('art_chaos_force_name'); },   icon:'🌪️', rarity:'rare',      get desc(){ return t('art_chaos_force_desc'); },   apply: c => { c.hyperHeal = true; } },
+  { id:'emperor_seal',  get name(){ return t('art_emperor_seal_name'); },  icon:'👑', rarity:'rare',      get desc(){ return t('art_emperor_seal_desc'); },  apply: c => { c.goldMult *= 1.5; } },
+  { id:'magic_orb',     get name(){ return t('art_magic_orb_name'); },     icon:'🔮', rarity:'rare',      get desc(){ return t('art_magic_orb_desc'); },     apply: c => { c.impactRange += 2; c.chainDelay = Math.max(10, c.chainDelay - 15); } },
+  { id:'butterfly',     get name(){ return t('art_butterfly_name'); },     icon:'🦋', rarity:'rare',      get desc(){ return t('art_butterfly_desc'); },     apply: c => { c.phaseHealAmt += 35; } },
   // ─ 전설 (4종) ─
-  { id:'rainbow_core',  name:'무지개 코어',    icon:'🌈', rarity:'legendary', desc:'충격 범위 +3, 연쇄 간격 -20ms, 회복 +3',
+  { id:'rainbow_core',  get name(){ return t('art_rainbow_core_name'); },  icon:'🌈', rarity:'legendary', get desc(){ return t('art_rainbow_core_desc'); },
     apply: c => { c.impactRange += 3; c.chainDelay = Math.max(10, c.chainDelay - 20); c.hpPerBlock += 3 * c.maxHp / 100; } },
-  { id:'eternal_heart', name:'영원의 심장',    icon:'♾️', rarity:'legendary', desc:'드레인 ×0.3, 최대 HP +50',
+  { id:'eternal_heart', get name(){ return t('art_eternal_heart_name'); }, icon:'♾️', rarity:'legendary', get desc(){ return t('art_eternal_heart_desc'); },
     apply: c => { c.drainMult *= 0.3; c.maxHp += 50; c.hp = Math.min(c.maxHp, c.hp + 50); } },
-  { id:'supernova',     name:'초신성',         icon:'💣', rarity:'legendary', desc:'15초마다 자동 폭탄 발동',
+  { id:'supernova',     get name(){ return t('art_supernova_name'); },     icon:'💣', rarity:'legendary', get desc(){ return t('art_supernova_desc'); },
     apply: c => { c.supernova = true; c.supernovaTimer = 0; } },
-  { id:'conqueror',     name:'정복자의 왕관',  icon:'🏆', rarity:'legendary', desc:'모든 수치 10% 향상, 골드 ×2',
+  { id:'conqueror',     get name(){ return t('art_conqueror_name'); },     icon:'🏆', rarity:'legendary', get desc(){ return t('art_conqueror_desc'); },
     apply: c => { c.hpPerBlock *= 1.1; c.impactRange = Math.ceil(c.impactRange * 1.1); c.chainDelay = Math.max(10, Math.floor(c.chainDelay * 0.9)); c.travelMs = Math.max(80, Math.floor(c.travelMs * 0.9)); c.drainMult *= 0.9; c.goldMult *= 2.0; } },
 ];
 
 // ── 도전 과제 정의 ───────────────────────────────────────
 const ACHIEVEMENT_DEFS = [
-  { id:'first_run',      name:'첫 발걸음',    desc:'런 1번 시작',                 icon:'🐾', rewardGold:500,   rewardRare:0,
-    check: s => s.totalRuns >= 1 },
-  { id:'act1_clear',     name:'탐험가',       desc:'ACT 1 클리어 (1-BOSS 생존)',   icon:'🌿', rewardGold:2000,  rewardRare:0,
-    check: s => s.act1Clears >= 1 },
-  { id:'act2_clear',     name:'도전자',       desc:'ACT 2 클리어 (2-BOSS 생존)',   icon:'🌋', rewardGold:5000,  rewardRare:0,
-    check: s => s.act2Clears >= 1 },
-  { id:'final_clear',    name:'정복자',       desc:'FINAL BOSS 클리어',            icon:'🏆', rewardGold:15000, rewardRare:20,
-    check: s => s.wins >= 1 },
-  { id:'combo_god',      name:'연쇄의 신',    desc:'50콤보 달성',                  icon:'⚡', rewardGold:1000,  rewardRare:0,
-    check: s => s.maxComboEver >= 50 },
-  { id:'legend_hunter',  name:'전설 수집가',  desc:'전설 블록 5개 획득',           icon:'⭐', rewardGold:1500,  rewardRare:0,
-    check: s => s.lifetimeLegendary >= 5 },
-  { id:'artifact_fan',   name:'아티팩트 덕후',desc:'1런에 아티팩트 8개 수집',      icon:'🎁', rewardGold:3000,  rewardRare:0,
-    check: s => s.maxArtifactsInRun >= 8 },
-  { id:'full_upgrade1',  name:'완전 강화',    desc:'스탯 1개 풀강화',              icon:'💎', rewardGold:0,     rewardRare:10,
-    check: () => Object.keys(STATS).some(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
-  { id:'full_upgrade_all',name:'모두 강화',   desc:'전 스탯 풀강화',               icon:'🌟', rewardGold:0,     rewardRare:50,
-    check: () => Object.keys(STATS).every(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
-  { id:'block_king',     name:'블록 파괴왕',  desc:'누적 블록 1000개 파괴',        icon:'💥', rewardGold:1000,  rewardRare:0,
-    check: s => s.lifetimeBlocks >= 1000 },
-  { id:'hyper_reach',    name:'HYPER 도달',   desc:'HYPER 단계 진입',              icon:'🔥', rewardGold:500,   rewardRare:0,
-    check: s => s.hyperReached >= 1 },
-  { id:'perfect_node',   name:'완벽한 생존',  desc:'HP 100 유지로 노드 클리어',    icon:'💯', rewardGold:2000,  rewardRare:5,
-    check: s => s.perfectNodeClears >= 1 },
-  { id:'ten_runs',       name:'반복의 힘',    desc:'10런 플레이',                  icon:'🔄', rewardGold:5000,  rewardRare:0,
-    check: s => s.totalRuns >= 10 },
-  { id:'five_min',       name:'5분 생존',     desc:'단일 노드에서 5분 생존',       icon:'⏱️', rewardGold:2000,  rewardRare:0,
-    check: s => s.maxNodeSec >= 300 },
-  { id:'legend_art',     name:'최강 빌드',    desc:'전설 아티팩트 보유',           icon:'🌈', rewardGold:3000,  rewardRare:10,
-    check: s => s.legendaryArtifactsEver >= 1 },
+  { id:'first_run',       get name(){ return t('ach_first_run_name'); },        get desc(){ return t('ach_first_run_desc'); },        icon:'🐾', rewardGold:500,   rewardRare:0,  check: s => s.totalRuns >= 1 },
+  { id:'act1_clear',      get name(){ return t('ach_act1_clear_name'); },       get desc(){ return t('ach_act1_clear_desc'); },       icon:'🌿', rewardGold:2000,  rewardRare:0,  check: s => s.act1Clears >= 1 },
+  { id:'act2_clear',      get name(){ return t('ach_act2_clear_name'); },       get desc(){ return t('ach_act2_clear_desc'); },       icon:'🌋', rewardGold:5000,  rewardRare:0,  check: s => s.act2Clears >= 1 },
+  { id:'final_clear',     get name(){ return t('ach_final_clear_name'); },      get desc(){ return t('ach_final_clear_desc'); },      icon:'🏆', rewardGold:15000, rewardRare:20, check: s => s.wins >= 1 },
+  { id:'combo_god',       get name(){ return t('ach_combo_god_name'); },        get desc(){ return t('ach_combo_god_desc'); },        icon:'⚡', rewardGold:1000,  rewardRare:0,  check: s => s.maxComboEver >= 50 },
+  { id:'legend_hunter',   get name(){ return t('ach_legend_hunter_name'); },    get desc(){ return t('ach_legend_hunter_desc'); },    icon:'⭐', rewardGold:1500,  rewardRare:0,  check: s => s.lifetimeLegendary >= 5 },
+  { id:'artifact_fan',    get name(){ return t('ach_artifact_fan_name'); },     get desc(){ return t('ach_artifact_fan_desc'); },     icon:'🎁', rewardGold:3000,  rewardRare:0,  check: s => s.maxArtifactsInRun >= 8 },
+  { id:'full_upgrade1',   get name(){ return t('ach_full_upgrade1_name'); },    get desc(){ return t('ach_full_upgrade1_desc'); },    icon:'💎', rewardGold:0,     rewardRare:10, check: () => Object.keys(STATS).some(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
+  { id:'full_upgrade_all',get name(){ return t('ach_full_upgrade_all_name'); }, get desc(){ return t('ach_full_upgrade_all_desc'); }, icon:'🌟', rewardGold:0,     rewardRare:50, check: () => Object.keys(STATS).every(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
+  { id:'block_king',      get name(){ return t('ach_block_king_name'); },       get desc(){ return t('ach_block_king_desc'); },       icon:'💥', rewardGold:1000,  rewardRare:0,  check: s => s.lifetimeBlocks >= 1000 },
+  { id:'hyper_reach',     get name(){ return t('ach_hyper_reach_name'); },      get desc(){ return t('ach_hyper_reach_desc'); },      icon:'🔥', rewardGold:500,   rewardRare:0,  check: s => s.hyperReached >= 1 },
+  { id:'perfect_node',    get name(){ return t('ach_perfect_node_name'); },     get desc(){ return t('ach_perfect_node_desc'); },     icon:'💯', rewardGold:2000,  rewardRare:5,  check: s => s.perfectNodeClears >= 1 },
+  { id:'ten_runs',        get name(){ return t('ach_ten_runs_name'); },         get desc(){ return t('ach_ten_runs_desc'); },         icon:'🔄', rewardGold:5000,  rewardRare:0,  check: s => s.totalRuns >= 10 },
+  { id:'five_min',        get name(){ return t('ach_five_min_name'); },         get desc(){ return t('ach_five_min_desc'); },         icon:'⏱️', rewardGold:2000,  rewardRare:0,  check: s => s.maxNodeSec >= 300 },
+  { id:'legend_art',      get name(){ return t('ach_legend_art_name'); },       get desc(){ return t('ach_legend_art_desc'); },       icon:'🌈', rewardGold:3000,  rewardRare:10, check: s => s.legendaryArtifactsEver >= 1 },
 ];
 const MAX_PARTICLES = 300;
 const MAX_RIPPLES   = 40;
@@ -682,6 +834,12 @@ function removeBlock(r, c) {
     const prog = getRunProg(); prog.lifetimeLegendary++; saveRunProg(prog);
     spawnStarBurst(GX + c * CELL + CELL / 2, GY + r * CELL + CELL / 2);
     popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL, text: '⭐ +' + rareGain, color: '#ffe066', life: 1.0, vy: -1.8, big: true });
+    // crystal_shard: 전설 파괴 시 HP +10% 즉시 회복
+    if (char && char.legendHeal > 0) {
+      const healAmt = Math.round(char.maxHp * char.legendHeal);
+      char.hp = Math.min(char.maxHp, char.hp + healAmt);
+      popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL - 20, text: '💎 +' + healAmt + 'HP', color: '#88eeff', life: 1.0, vy: -1.5, big: false });
+    }
   } else if (sDestroyed[color] !== undefined) {
     sDestroyed[color]++;
   }
@@ -768,9 +926,14 @@ function initChar() {
     fireworkThreshold:  12,
     steelBreaker:       false,
     lowHpShield:        false,
+    lowHpHealBonus:     0,
     hyperHeal:          false,
     supernova:          false,
     supernovaTimer:     0,
+    legendHeal:         0,
+    hungerActive:       false,
+    hungerCombo:        0,
+    chainOverflow:      false,
   };
   applyArtifacts();
   // 노드 드레인 배율 (아티팩트 vitality 위에 추가로 적용)
@@ -784,8 +947,15 @@ function initChar() {
 }
 
 function applyArtifacts() {
-  for (const artId of runState.artifacts) {
+  // resonance는 마지막에 적용 (보유 아티팩트 수를 읽어야 정확함)
+  const nonResonance = runState.artifacts.filter(id => id !== 'resonance');
+  const hasResonance = runState.artifacts.includes('resonance');
+  for (const artId of nonResonance) {
     const art = ARTIFACT_POOL.find(a => a.id === artId);
+    if (art && art.apply) art.apply(char);
+  }
+  if (hasResonance) {
+    const art = ARTIFACT_POOL.find(a => a.id === 'resonance');
     if (art && art.apply) art.apply(char);
   }
 }
@@ -897,10 +1067,16 @@ function byDist(blocks, sr, sc) {
 
 function healFromBlock(chainSize) {
   const bonus = Math.max(1.0, 1 + (chainSize - 2) * 0.1);
-  let heal = char.hpPerBlock * bonus;
-  // chainHealBonus: 체인 5개마다 추가 회복
+  let hpPerBlock = char.hpPerBlock;
+  // defense_orb: HP < 30% 시 블록 회복 +50%
+  if (char.lowHpHealBonus > 0 && char.hp / char.maxHp < 0.30) {
+    hpPerBlock *= (1 + char.lowHpHealBonus);
+  }
+  let heal = hpPerBlock * bonus;
+  // chainHealBonus: 체인 5개마다 추가 회복, 충격 범위에 비례
   if (char.chainHealBonus > 0 && chainSize >= 5 && Math.floor(chainSize / 5) > 0) {
-    heal += char.chainHealBonus;
+    const rangeMult = 1 + char.impactRange * 0.1;
+    heal += char.chainHealBonus * rangeMult;
   }
   char.hp = Math.min(char.maxHp, char.hp + heal);
 }
@@ -1032,7 +1208,7 @@ function dropItemBlock(combo) {
   const candidates = [];
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
-      if (grid[r][c] && !grid[r][c].item && grid[r][c].color !== 'legendary') candidates.push({ r, c });
+      if (grid[r][c] && !grid[r][c].item && !grid[r][c].steel && grid[r][c].color !== 'legendary') candidates.push({ r, c });
   if (!candidates.length) return;
 
   const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
@@ -1047,6 +1223,33 @@ function finishChain(combo) {
   if (combo >= 5) {
     const bonusGold = Math.round((combo * 5 + char.comboGoldBonus) * char.goldMult);
     sGold += bonusGold;
+  }
+
+  // 연쇄 배고픔: 누적 콤보 20마다 impactRange +1
+  if (char.hungerActive) {
+    char.hungerCombo += combo;
+    while (char.hungerCombo >= 20) {
+      char.hungerCombo -= 20;
+      char.impactRange++;
+      bigPopup('🍽️ HUNGER!', '#ff9944');
+    }
+  }
+
+  // 연쇄 범람: 10콤보 이상 시 추가 블록 파괴
+  if (char.chainOverflow && combo >= 10) {
+    // 그리드에서 임의의 남은 블록 1개 추가 파괴
+    const remaining = [];
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item) remaining.push({ r, c });
+    if (remaining.length) {
+      const pick = remaining[Math.floor(Math.random() * remaining.length)];
+      burstParticles(pick.r, pick.c, '#44aaff');
+      removeBlock(pick.r, pick.c);
+      sBlocks++;
+      sGold += Math.round(char.goldPerBlock * char.goldMult);
+      popups.push({ x: GX + pick.c * CELL + CELL / 2, y: GY + pick.r * CELL, text: '💦 OVERFLOW', color: '#44aaff', life: 1.0, vy: -1.8, big: true });
+    }
   }
 
   const milestone = COMBO_MILESTONES.find(m => combo >= m.threshold);
@@ -1462,7 +1665,7 @@ function drawGrid() {
 
       // Item block glow + emoji
       if (blk.item) {
-        const glowColor = blk.item === 'firework' ? '#ff7f2a' : '#a855f7';
+        const glowColor = blk.item === 'firework' ? '#ff7f2a' : '#e05c00';
         const pulse = 0.5 + 0.3 * Math.sin(now / 220);
         ctx.save();
         ctx.shadowColor = glowColor;
