@@ -56,6 +56,18 @@
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.1); color: #6868a0; font-size: 14px;
     }
+    /* ── reset popup ── */
+    #reset-popup {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    #reset-popup.hidden { display: none; }
+    .reset-popup-box {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,.15);
+      border-radius: 16px; padding: 24px 20px; width: 300px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
     /* ── shop ── */
     .shop-tab {
       padding: 10px; border: none; font-size: 14px; cursor: pointer;
@@ -108,7 +120,22 @@
       Lv.4 달성 시 꾸미기 해금됩니다
     </div>
     <button class="btn btn-s" onclick="showMain()" style="margin-top:auto">← 돌아가기</button>
-    <button class="btn btn-s" onclick="resetSaveData()" style="margin-top:4px;color:#ff5555;border-color:rgba(255,85,85,.3)">🗑️ 저장 초기화</button>
+    <button class="btn btn-s" onclick="openResetPopup()" style="margin-top:4px;color:#ff5555;border-color:rgba(255,85,85,.3)">🗑️ 저장 초기화</button>
+  </div>
+
+  <!-- RESET POPUP -->
+  <div id="reset-popup" class="hidden">
+    <div class="reset-popup-box">
+      <div style="font-size:16px;font-weight:700;color:#e0e0f0;text-align:center">🗑️ 초기화</div>
+      <div style="font-size:12px;color:#9090b0;text-align:center;line-height:1.6">삭제할 데이터를 선택해주세요</div>
+      <button class="btn btn-s" onclick="doReset('progress')" style="color:#ffaa55;border-color:rgba(255,170,85,.3);font-size:13px;padding:12px">
+        💰 강화 초기화<br><span style="font-size:11px;color:#707090;font-weight:400">골드 · 재료 · 강화 수치 삭제<br>기록은 유지</span>
+      </button>
+      <button class="btn btn-s" onclick="doReset('all')" style="color:#ff5555;border-color:rgba(255,85,85,.3);font-size:13px;padding:12px">
+        💀 전체 초기화<br><span style="font-size:11px;color:#707090;font-weight:400">강화 + 최고 기록 전부 삭제</span>
+      </button>
+      <button class="btn btn-s" onclick="closeResetPopup()" style="font-size:13px;padding:10px">취소</button>
+    </div>
   </div>
 
   <!-- GAME -->
@@ -1275,9 +1302,17 @@ function showShop() {
   renderUpgradeTab();
 }
 
-function resetSaveData() {
-  if (!confirm('모든 저장 데이터를 초기화합니다.\n골드, 재료, 강화 수치가 전부 사라집니다.\n계속하시겠습니까?')) return;
-  Object.values(SK).forEach(k => localStorage.removeItem(k));
+function openResetPopup()  { document.getElementById('reset-popup').classList.remove('hidden'); }
+function closeResetPopup() { document.getElementById('reset-popup').classList.add('hidden'); }
+
+function doReset(type) {
+  closeResetPopup();
+  if (type === 'all') {
+    Object.values(SK).forEach(k => localStorage.removeItem(k));
+  } else {
+    // 강화만: 골드·재료·스탯 삭제, 기록(hs) 유지
+    [SK.gold, SK.mats, SK.stats].forEach(k => localStorage.removeItem(k));
+  }
   renderUpgradeTab();
   showMain();
 }
