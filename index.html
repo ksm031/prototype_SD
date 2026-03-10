@@ -84,6 +84,15 @@
     }
     .res-row { display: flex; justify-content: space-between; color: #9090b0; font-size: 14px; }
     .res-row b { color: #f0c040; font-size: 17px; }
+    /* ── pause button ── */
+    #pause-btn {
+      display: none; position: absolute; top: 12px; right: 12px;
+      z-index: 10; width: 40px; height: 40px; border: none; border-radius: 10px;
+      background: rgba(255,255,255,.15); backdrop-filter: blur(4px);
+      color: #fff; font-size: 18px; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    #pause-btn:active { transform: scale(.9); }
   </style>
 </head>
 <body>
@@ -140,6 +149,7 @@
 
   <!-- GAME -->
   <canvas id="gc" width="360" height="520"></canvas>
+  <button id="pause-btn" onclick="togglePause()">⏸</button>
 
   <!-- RESULT -->
   <div id="rs" class="screen">
@@ -185,19 +195,19 @@ const COLS = 6, ROWS = 7, CELL = 50;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 64;                         // grid offset Y
 const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
-const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040' };
-const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010' };
-const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc' };
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#7c6fcd', steel: '#5a6473' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#3d3370', steel: '#2e3440' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#c4b8f5', steel: '#aab4c2' };
 
 let colorCount = 3;
 let COLORS = ALL_COLORS.slice(0, colorCount);
 
 // 시간 기반 단계: 0-60s=3색, 60-120s=4색, 120-180s=5색, 180s+=HYPER
 const PHASE_DEFS = [
-  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png' },
-  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png' },
-  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png' },
-  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png' },
+  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png', steelInterval: 20000 },
+  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png', steelInterval: 13000 },
+  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png', steelInterval: 8000  },
+  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png', steelInterval: 4000  },
 ];
 
 // 배경 이미지 프리로드
@@ -247,6 +257,22 @@ const SPR = {};
 })();
 
 const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats' };
+const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+const MAX_PARTICLES = 300;
+const MAX_RIPPLES   = 40;
+const MAX_POPUPS    = 20;
+const BOMB_RADIUS   = 2;
+
+const COMBO_MILESTONES = [
+  { threshold: 30, shakeAmt: 18, shakeFr: 40, haptic: [50, 15, 80, 15, 50], text: 'LEGENDARY!!', color: '#c084fc', isStar: true },
+  { threshold: 10, shakeAmt: 12, shakeFr: 28, haptic: [30, 10, 50],          text: 'CHOMP!!',     color: '#ff4444' },
+  { threshold:  5, shakeAmt:  5, shakeFr: 14, haptic: [20, 10, 30],          text: 'COMBO!',      color: '#f0c040' },
+];
+
+const ITEM_DROP_TIERS = [
+  { threshold: 15, type: 'bomb'     },
+  { threshold:  8, type: 'firework' },
+];
 
 // ── 개별 스탯 정의 ────────────────────────
 const STATS = {
@@ -324,7 +350,7 @@ function addMats(gained) {
 const canvas = document.getElementById('gc');
 const ctx    = canvas.getContext('2d');
 
-let gstate  = 'idle';  // idle | playing | over
+let gstate  = 'idle';  // idle | playing | paused | over
 let grid    = [];
 let char    = {};
 
@@ -333,6 +359,8 @@ let sGold = 0, sBlocks = 0, sMaxCombo = 0;
 let sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
 let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
+let steelSpawnTimer = 0; // ms until next steel block spawn
+let pendingTimers = new Set();
 
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
@@ -358,8 +386,12 @@ function showScreen(id) {
     el.classList.remove('active');
   });
   canvas.style.display = 'none';
+  document.getElementById('pause-btn').style.display = 'none';
   if (id === 'gc') {
     canvas.style.display = 'block';
+    document.getElementById('pause-btn').style.display = 'flex';
+    document.getElementById('pause-btn').style.alignItems = 'center';
+    document.getElementById('pause-btn').style.justifyContent = 'center';
   } else {
     const el = document.getElementById(id);
     el.style.display = 'flex';
@@ -372,7 +404,6 @@ function showMain() {
   document.getElementById('m-hs').textContent   = getHS() + '초';
   document.getElementById('m-gold').textContent = getGold() + ' G';
 
-  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
   const mats = getMats();
   const parts = Object.entries(mats).filter(([, v]) => v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
   document.getElementById('m-mats').textContent = parts.length ? parts.join(' ') : '—';
@@ -416,7 +447,7 @@ function bfs(sr, sc, id, vis) {
     if (vis[r][c]) continue;
     vis[r][c] = true;
     grid[r][c].chainId = id;
-    if (color === 'legendary') continue; // legendary는 혼자만 체인
+    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel) continue; // legendary/item/steel은 혼자만 체인
     for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
       if (inB(nr, nc) && !vis[nr][nc] && grid[nr][nc]?.color === color)
         q.push([nr, nc]);
@@ -436,8 +467,26 @@ function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
 
 function removeBlock(r, c) {
   if (!grid[r][c]) return;
-  const color = grid[r][c].color;
-  burstParticles(r, c, BCOLOR[color]);
+  const blk = grid[r][c];
+  const color = blk.color;
+  if (blk.steel) {
+    // 강철 블럭은 일반 공격 면역 — 클랭 이펙트만
+    ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.4, life: 0.6 });
+    shake(3, 4);
+    popup(GX + c * CELL + CELL / 2, GY + r * CELL - 4, '🔒', '#aab4c2');
+    return;
+  }
+  burstParticles(r, c, BCOLOR[color] || '#ffffff');
+  if (blk.item === 'firework') {
+    grid[r][c] = null;
+    triggerFirework(r, c);
+    return;
+  }
+  if (blk.item === 'bomb') {
+    grid[r][c] = null;
+    triggerBomb(r, c);
+    return;
+  }
   if (color === 'legendary') {
     const m = getMats(); m.rare = (m.rare || 0) + 1; saveMats(m);
     spawnStarBurst(GX + c * CELL + CELL / 2, GY + r * CELL + CELL / 2);
@@ -565,7 +614,7 @@ function updateChar(dt) {
       // 랜딩 애니메이션 후 idle로
       char.state = 'landing';
       char.frameT = 0;
-      setTimeout(() => {
+      safeTimeout(() => {
         char.state = 'idle';
         char.frameT = 0;
         locked = false;
@@ -591,7 +640,7 @@ function startEat(r, c) {
     shake(6, 18);
     haptic([15, 5, 15]);
     popup(char.x, char.y - 44, 'OW!', '#ff5555');
-    setTimeout(() => {
+    safeTimeout(() => {
       goBase();
       checkOver();
     }, 750);
@@ -606,7 +655,7 @@ function startEat(r, c) {
     sGold += 10;
     popup(char.x, char.y - 44, '…', '#888899');
     char.state = 'returning';
-    setTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
+    safeTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
     return;
   }
 
@@ -634,6 +683,7 @@ function runChain(chainBlocks, sr, sc) {
   char.state = 'eating';
 
   const iv = setInterval(() => {
+    if (gstate !== 'playing') { clearInterval(iv); return; }
     if (!ordered.length) {
       clearInterval(iv);
       // Phase 3: 체인 주변 인접 블록 한꺼번에 처리
@@ -678,27 +728,87 @@ function runChain(chainBlocks, sr, sc) {
   }, char.chainDelay);
 }
 
+// ═══════════════════════════════════════
+//  STEEL BLOCKS
+// ═══════════════════════════════════════
+function spawnSteel() {
+  // 상단 2행 중 랜덤 열에 강철 블럭 배치
+  const candidates = [];
+  for (let r = 0; r < 3; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item && grid[r][c].color !== 'legendary') candidates.push({ r, c });
+  if (!candidates.length) return;
+
+  const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
+  grid[r][c] = { color: 'steel', steel: true, chainId: -1, hp: 1, animY: grid[r][c].animY, fallV: 0 };
+  buildChains();
+  shake(4, 6);
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, '⚙️', '#aab4c2', true);
+}
+
+// ═══════════════════════════════════════
+//  ITEM BLOCKS
+// ═══════════════════════════════════════
+function clearCells(cells, color) {
+  for (const [r, c] of cells) {
+    if (!inB(r, c) || !grid[r][c]) continue;
+    burstParticles(r, c, color);
+    grid[r][c] = null;
+  }
+}
+
+function triggerFirework(r, c) {
+  shake(8, 18);
+  haptic([20, 10, 40]);
+  bigPopup('🧨 BANG!', '#ff7f2a');
+  const cells = Array.from({ length: COLS }, (_, cc) => [r, cc]);
+  clearCells(cells, '#ff7f2a');
+}
+
+function triggerBomb(r, c) {
+  shake(16, 32);
+  haptic([30, 10, 60, 10, 30]);
+  bigPopup('💣 BOOM!!', '#a855f7');
+  const cells = [];
+  for (let dr = -BOMB_RADIUS; dr <= BOMB_RADIUS; dr++)
+    for (let dc = -BOMB_RADIUS; dc <= BOMB_RADIUS; dc++)
+      cells.push([r + dr, c + dc]);
+  clearCells(cells, '#a855f7');
+}
+
+function dropItemBlock(combo) {
+  const tier = ITEM_DROP_TIERS.find(t => combo >= t.threshold);
+  if (!tier) return;
+  const type = tier.type;
+
+  const candidates = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] && !grid[r][c].item && grid[r][c].color !== 'legendary') candidates.push({ r, c });
+  if (!candidates.length) return;
+
+  const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
+  grid[r][c].item = type;
+  grid[r][c].color = type;
+  buildChains();
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, type === 'bomb' ? '💣' : '🧨', '#ffffff', true);
+}
+
 function finishChain(combo) {
   if (combo > sMaxCombo) sMaxCombo = combo;
   if (combo >= 5) sGold += combo * 5;
 
-  if (combo >= 20) {
-    shake(18, 40);
-    haptic([50, 15, 80, 15, 50]);
-    bigPopup('LEGENDARY!!', '#c084fc');
-    burstStar(AW / 2, AH / 2 - 40);
-  } else if (combo >= 10) {
-    shake(12, 28);
-    haptic([30, 10, 50]);
-    bigPopup('CHOMP!!', '#ff4444');
-  } else if (combo >= 5) {
-    shake(5, 14);
-    haptic([20, 10, 30]);
-    bigPopup('COMBO!', '#f0c040');
+  const milestone = COMBO_MILESTONES.find(m => combo >= m.threshold);
+  if (milestone) {
+    shake(milestone.shakeAmt, milestone.shakeFr);
+    haptic(milestone.haptic);
+    bigPopup(milestone.text, milestone.color);
+    if (milestone.isStar) burstStar(AW / 2, AH / 2 - 40);
   }
 
-  setTimeout(() => {
+  safeTimeout(() => {
     gravity();
+    dropItemBlock(combo);
     goBase();
     checkOver();
   }, 200);
@@ -725,7 +835,7 @@ function endGame(reason) {
     bigPopup('GAME OVER', '#ff5555');
   }
   slowFactor = 0.2;
-  setTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
+  safeTimeout(() => { slowFactor = 1.0; showResult(); }, 1600);
 }
 
 // ═══════════════════════════════════════
@@ -891,7 +1001,7 @@ function drawHUD() {
   ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
   // 하단 행: 드레인 속도 | 생존 시간 | 골드
-  const drainRate = (12.0 + gameElapsed / 1000 * 0.22) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
+  const drainRate = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
   const secStr    = Math.floor(gameElapsed / 1000) + 's';
 
   // 페이즈 레이블 (HP 바 위 가운데)
@@ -1038,6 +1148,52 @@ function drawGrid() {
         ctx.restore();
       }
 
+      // Steel block — crosshatch + icon
+      if (blk.steel) {
+        ctx.save();
+        // 빗금 패턴
+        ctx.strokeStyle = 'rgba(170,180,194,0.25)';
+        ctx.lineWidth = 1.5;
+        for (let d = -CELL; d < CELL * 2; d += 7) {
+          ctx.beginPath();
+          ctx.moveTo(x + PAD + d, y + PAD);
+          ctx.lineTo(x + PAD + d + CELL, y + PAD + CELL - PAD * 2);
+          ctx.stroke();
+        }
+        // 테두리
+        ctx.strokeStyle = '#aab4c2';
+        ctx.lineWidth = 2;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        // 아이콘
+        ctx.font = 'bold 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚙️', x + CELL / 2, y + CELL / 2);
+        ctx.restore();
+      }
+
+      // Item block glow + emoji
+      if (blk.item) {
+        const glowColor = blk.item === 'firework' ? '#ff7f2a' : '#a855f7';
+        const pulse = 0.5 + 0.3 * Math.sin(now / 220);
+        ctx.save();
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = glowColor;
+        ctx.globalAlpha = pulse;
+        ctx.lineWidth = 2.5;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(blk.item === 'firework' ? '🧨' : '💣', x + CELL / 2, y + CELL / 2);
+        ctx.restore();
+      }
+
       // 상단 광택 (위에 연결된 블록 없을 때만)
       if (!hasT) {
         ctx.fillStyle = blt;
@@ -1101,6 +1257,7 @@ function drawChar() {
 
 function drawParticles() {
   particles = particles.filter(p => p.life > 0);
+  if (particles.length > MAX_PARTICLES) particles = particles.slice(-MAX_PARTICLES);
   for (const p of particles) {
     p.x  += p.vx * slowFactor;
     p.y  += p.vy * slowFactor;
@@ -1132,6 +1289,7 @@ function drawParticles() {
 
 function drawRipples() {
   ripples = ripples.filter(r => r.life > 0);
+  if (ripples.length > MAX_RIPPLES) ripples = ripples.slice(-MAX_RIPPLES);
   for (const rpl of ripples) {
     rpl.rad  += 2.8 * slowFactor;
     rpl.life -= 0.06 * slowFactor;
@@ -1145,6 +1303,7 @@ function drawRipples() {
 
 function drawPopups() {
   popups = popups.filter(p => p.life > 0);
+  if (popups.length > MAX_POPUPS) popups = popups.slice(-MAX_POPUPS);
   for (const p of popups) {
     p.y    += p.vy * slowFactor;
     p.life -= 0.028 * slowFactor;
@@ -1166,6 +1325,13 @@ function drawPopups() {
 // ═══════════════════════════════════════
 function loop(ts) {
   if (gstate === 'idle') return;
+  rafID = requestAnimationFrame(loop);
+
+  if (gstate === 'paused') {
+    drawPauseOverlay();
+    return;
+  }
+
   const raw = ts - (lastTS || ts);
   const dt  = raw * slowFactor;
   lastTS = ts;
@@ -1193,8 +1359,15 @@ function loop(ts) {
       hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
     }
 
+    // 강철 블럭 스폰 타이머
+    steelSpawnTimer -= raw;
+    if (steelSpawnTimer <= 0) {
+      spawnSteel();
+      steelSpawnTimer = PHASE_DEFS[Math.min(currentPhase, PHASE_DEFS.length - 1)].steelInterval;
+    }
+
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
-    const drainRate  = (12.0 + gameElapsed / 1000 * 0.22) * char.drainMult * pulseMult;
+    const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * pulseMult;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
   }
@@ -1202,7 +1375,6 @@ function loop(ts) {
   updateChar(dt);
   updateBlockAnims(dt);
   render(dt);
-  rafID = requestAnimationFrame(loop);
 }
 
 // ═══════════════════════════════════════
@@ -1250,9 +1422,46 @@ canvas.addEventListener('touchstart', e => {
 // ═══════════════════════════════════════
 //  START / STOP
 // ═══════════════════════════════════════
+function togglePause() {
+  if (gstate === 'over') return;
+  if (gstate === 'playing') {
+    gstate = 'paused';
+    document.getElementById('pause-btn').textContent = '▶';
+  } else if (gstate === 'paused') {
+    gstate = 'playing';
+    lastTS = 0;  // prevent dt spike on resume
+    document.getElementById('pause-btn').textContent = '⏸';
+  }
+}
+
+function drawPauseOverlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 10, 30, 0.72)';
+  ctx.fillRect(0, 0, AW, AH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 32px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('일시정지', AW / 2, AH / 2 - 16);
+  ctx.font = '400 14px sans-serif';
+  ctx.fillStyle = 'rgba(200,200,220,0.7)';
+  ctx.fillText('버튼을 눌러 재개', AW / 2, AH / 2 + 22);
+  ctx.restore();
+}
+
 function stopGame() {
   cancelAnimationFrame(rafID);
+  for (const id of pendingTimers) clearTimeout(id);
+  pendingTimers.clear();
+  locked = false;
   gstate = 'idle';
+  document.getElementById('pause-btn').textContent = '⏸';
+}
+
+function safeTimeout(fn, ms) {
+  const id = setTimeout(() => { pendingTimers.delete(id); fn(); }, ms);
+  pendingTimers.add(id);
+  return id;
 }
 
 function startGame() {
@@ -1262,8 +1471,9 @@ function startGame() {
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
+  steelSpawnTimer = PHASE_DEFS[0].steelInterval;
   slowFactor = 1.0; lastTS = 0; locked = false;
-  particles = []; popups = []; ripples = [];
+  particles = []; popups = []; ripples = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
 
   initGrid();
@@ -1286,7 +1496,6 @@ function showResult() {
   document.getElementById('r-best').textContent   = newBest;
 
   // 재료 정산 (블록 5개당 1개)
-  const COLOR_ICON = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
   const gainedMats = {};
   for (const [color, cnt] of Object.entries(sDestroyed)) {
     const g = Math.floor(cnt / 5);
@@ -1313,8 +1522,9 @@ function showResult() {
   const anim = setInterval(() => {
     d = Math.min(d + step, earned);
     gel.textContent = d;
-    if (d >= earned) clearInterval(anim);
+    if (d >= earned) { pendingTimers.delete(anim); clearInterval(anim); }
   }, 40);
+  pendingTimers.add(anim);
 
   showScreen('rs');
 }
@@ -1322,8 +1532,6 @@ function showResult() {
 // ═══════════════════════════════════════
 //  SHOP / UPGRADE
 // ═══════════════════════════════════════
-const CICON = { red:'🔴', blue:'🔵', yellow:'🟡', green:'🟢', purple:'🟣' };
-
 function canUpgradeStat(id) {
   const lv    = getStatLevel(id);
   const tiers = STATS[id].tiers;
@@ -1333,7 +1541,7 @@ function canUpgradeStat(id) {
   if (gold < next.gold) return { ok: false, reason: `골드 부족 (${next.gold - gold}G)` };
   for (const [k, need] of Object.entries(next.mat)) {
     const have = k === 'rare' ? (mats.rare || 0) : (mats[k] || 0);
-    if (have < need) return { ok: false, reason: `${CICON[k]||'⭐'} 부족` };
+    if (have < need) return { ok: false, reason: `${COLOR_ICON[k]||'⭐'} 부족` };
   }
   return { ok: true };
 }
@@ -1365,7 +1573,7 @@ function renderUpgradeTab() {
   const gold = getGold(), mats = getMats();
 
   document.getElementById('sh-gold').textContent = gold.toLocaleString() + ' G 🪙';
-  const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${CICON[k]}${v}`).join(' ');
+  const matStr = Object.entries(mats).filter(([k,v])=>k!=='rare'&&v>0).map(([k,v])=>`${COLOR_ICON[k]}${v}`).join(' ');
   document.getElementById('sh-mats-line').textContent = (matStr||'재료 없음') + (mats.rare>0 ? '  ⭐'+mats.rare : '');
 
   const container = document.getElementById('sh-upgrade');
@@ -1404,7 +1612,7 @@ function renderUpgradeTab() {
       for (const [k, need] of Object.entries(next.mat)) {
         const have = k === 'rare' ? (mats.rare||0) : (mats[k]||0);
         const ok = have >= need;
-        reqHtml += ` <span style="color:${ok?'#7ec850':'#ff5555'}">${CICON[k]||'⭐'}${need}</span>`;
+        reqHtml += ` <span style="color:${ok?'#7ec850':'#ff5555'}">${COLOR_ICON[k]||'⭐'}${need}</span>`;
       }
     }
 
