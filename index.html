@@ -750,11 +750,14 @@ function spawnSteel() {
 //  ITEM BLOCKS
 // ═══════════════════════════════════════
 function clearCells(cells, color) {
+  let destroyed = 0;
   for (const [r, c] of cells) {
     if (!inB(r, c) || !grid[r][c]) continue;
     burstParticles(r, c, color);
     grid[r][c] = null;
+    destroyed++;
   }
+  return destroyed;
 }
 
 function triggerFirework(r, c) {
@@ -762,7 +765,8 @@ function triggerFirework(r, c) {
   haptic([20, 10, 40]);
   bigPopup('🧨 BANG!', '#ff7f2a');
   const cells = Array.from({ length: COLS }, (_, cc) => [r, cc]);
-  clearCells(cells, '#ff7f2a');
+  const destroyed = clearCells(cells, '#ff7f2a');
+  for (let i = 0; i < destroyed; i++) healFromBlock(destroyed);
 }
 
 function triggerBomb(r, c) {
@@ -773,7 +777,8 @@ function triggerBomb(r, c) {
   for (let dr = -BOMB_RADIUS; dr <= BOMB_RADIUS; dr++)
     for (let dc = -BOMB_RADIUS; dc <= BOMB_RADIUS; dc++)
       cells.push([r + dr, c + dc]);
-  clearCells(cells, '#a855f7');
+  const destroyed = clearCells(cells, '#a855f7');
+  for (let i = 0; i < destroyed; i++) healFromBlock(destroyed);
 }
 
 function dropItemBlock(combo) {
