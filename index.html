@@ -367,6 +367,7 @@ let shakeFr = 0, shakeAmt = 0;
 let popups    = [];  // { x,y,text,color,life,vy,big }
 let particles = [];  // { x,y,vx,vy,r,color,life }
 let ripples   = [];  // { x,y,rad,life } — wave 시각화
+let flashes   = [];  // { x,y,w,h,color,life } — AoE area flash
 
 // ═══════════════════════════════════════
 //  STORAGE
@@ -765,6 +766,9 @@ function triggerFirework(r, c) {
   shake(8, 18);
   haptic([20, 10, 40]);
   bigPopup('🧨 BANG!', '#ff7f2a');
+  // 행 전체 가로 플래시
+  flashes.push({ x: GX, y: GY + r * CELL, w: COLS * CELL, h: CELL,
+                 color: '#ff7f2a', life: 1.0, type: 'row' });
   const cells = Array.from({ length: COLS }, (_, cc) => [r, cc]);
   const destroyed = clearCells(cells, '#ff7f2a');
   for (let i = 0; i < destroyed; i++) healFromBlock(destroyed);
@@ -774,6 +778,13 @@ function triggerBomb(r, c) {
   shake(16, 32);
   haptic([30, 10, 60, 10, 30]);
   bigPopup('💣 BOOM!!', '#a855f7');
+  // 반경 사각형 플래시
+  const x1 = GX + Math.max(0, c - BOMB_RADIUS) * CELL;
+  const y1 = GY + Math.max(0, r - BOMB_RADIUS) * CELL;
+  const x2 = GX + (Math.min(COLS - 1, c + BOMB_RADIUS) + 1) * CELL;
+  const y2 = GY + (Math.min(ROWS - 1, r + BOMB_RADIUS) + 1) * CELL;
+  flashes.push({ x: x1, y: y1, w: x2 - x1, h: y2 - y1,
+                 color: '#a855f7', life: 1.0, type: 'area' });
   const cells = [];
   for (let dr = -BOMB_RADIUS; dr <= BOMB_RADIUS; dr++)
     for (let dc = -BOMB_RADIUS; dc <= BOMB_RADIUS; dc++)
@@ -952,6 +963,7 @@ function render(dt) {
   }
 
   drawGrid();
+  drawFlashes();
   drawRipples();
   drawChar();
   drawParticles();
@@ -1293,6 +1305,27 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawFlashes() {
+  flashes = flashes.filter(f => f.life > 0);
+  for (const f of flashes) {
+    f.life -= 0.045 * slowFactor;
+    const t = Math.max(0, f.life);
+    ctx.save();
+    // 내부 채우기 (빠르게 사라짐)
+    ctx.globalAlpha = t * t * 0.35;
+    ctx.fillStyle = f.color;
+    ctx.fillRect(f.x, f.y, f.w, f.h);
+    // 테두리 (더 오래 남음)
+    ctx.globalAlpha = t * 0.9;
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = f.color;
+    ctx.shadowBlur = 12;
+    ctx.strokeRect(f.x + 1.5, f.y + 1.5, f.w - 3, f.h - 3);
+    ctx.restore();
+  }
+}
+
 function drawRipples() {
   ripples = ripples.filter(r => r.life > 0);
   if (ripples.length > MAX_RIPPLES) ripples = ripples.slice(-MAX_RIPPLES);
@@ -1479,7 +1512,7 @@ function startGame() {
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
   steelSpawnTimer = PHASE_DEFS[0].steelInterval;
   slowFactor = 1.0; lastTS = 0; locked = false;
-  particles = []; popups = []; ripples = []; pendingTimers = new Set();
+  particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
 
   initGrid();
