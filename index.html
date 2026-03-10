@@ -270,8 +270,8 @@ const COMBO_MILESTONES = [
 ];
 
 const ITEM_DROP_TIERS = [
-  { threshold: 15, type: 'bomb'     },
-  { threshold:  8, type: 'firework' },
+  { threshold: 22, type: 'bomb'     },
+  { threshold: 12, type: 'firework' },
 ];
 
 // ── 개별 스탯 정의 ────────────────────────
@@ -279,49 +279,49 @@ const STATS = {
   recovery: { name:'회복력', icon:'💚', desc:'블록 파괴 시 HP 회복량',
     tiers:[
       { value:3.0 },
-      { value:4.5,  gold:200,  mat:{ yellow:10 } },
-      { value:6.0,  gold:500,  mat:{ yellow:25 } },
-      { value:8.0,  gold:1200, mat:{ yellow:50, rare:3 } },
-      { value:11.0, gold:3000, mat:{ yellow:100, rare:10 } },
+      { value:4.5,  gold:600,  mat:{ yellow:30 } },
+      { value:6.0,  gold:1500, mat:{ yellow:75 } },
+      { value:8.0,  gold:3600, mat:{ yellow:150, rare:9 } },
+      { value:11.0, gold:9000, mat:{ yellow:300, rare:30 } },
     ]
   },
   impact: { name:'충격파', icon:'💥', desc:'연쇄 충격 범위 (칸)',
     tiers:[
       { value:1 },
-      { value:2, gold:300, mat:{ red:15 } },
-      { value:3, gold:900, mat:{ red:40, rare:5 } },
+      { value:2, gold:900,  mat:{ red:45 } },
+      { value:3, gold:2700, mat:{ red:120, rare:15 } },
     ]
   },
   speed: { name:'연쇄 속도', icon:'⚡', desc:'연쇄 간격 ms (낮을수록 빠름)',
     tiers:[
       { value:50 },
-      { value:40, gold:250, mat:{ blue:15 } },
-      { value:30, gold:700, mat:{ blue:35 } },
-      { value:22, gold:1800, mat:{ blue:70, rare:8 } },
+      { value:40, gold:750,  mat:{ blue:45 } },
+      { value:30, gold:2100, mat:{ blue:105 } },
+      { value:22, gold:5400, mat:{ blue:210, rare:24 } },
     ]
   },
   vitality: { name:'생명력', icon:'🛡️', desc:'HP 드레인 저항 (높을수록 좋음)',
     tiers:[
       { value:1.00 },
-      { value:0.82, gold:300, mat:{ green:15 } },
-      { value:0.65, gold:800, mat:{ green:35 } },
-      { value:0.50, gold:2000, mat:{ green:70, rare:10 } },
+      { value:0.82, gold:900,  mat:{ green:45 } },
+      { value:0.65, gold:2400, mat:{ green:105 } },
+      { value:0.50, gold:6000, mat:{ green:210, rare:30 } },
     ]
   },
   movespeed: { name:'이동 속도', icon:'🦶', desc:'블록까지 이동 시간 ms (낮을수록 빠름)',
     tiers:[
       { value:420 },
-      { value:340, gold:300,  mat:{ blue:15 } },
-      { value:270, gold:800,  mat:{ blue:35 } },
-      { value:210, gold:2000, mat:{ blue:70, rare:8 } },
+      { value:340, gold:900,  mat:{ blue:45 } },
+      { value:270, gold:2400, mat:{ blue:105 } },
+      { value:210, gold:6000, mat:{ blue:210, rare:24 } },
     ]
   },
   maxhp: { name:'최대 체력', icon:'❤️', desc:'최대 HP (회복량도 비례 증가)',
     tiers:[
       { value:100 },
-      { value:130, gold:400,  mat:{ green:20 } },
-      { value:170, gold:1000, mat:{ green:50, rare:5 } },
-      { value:220, gold:2500, mat:{ green:90, rare:15 } },
+      { value:130, gold:1200, mat:{ green:60 } },
+      { value:170, gold:3000, mat:{ green:150, rare:15 } },
+      { value:220, gold:7500, mat:{ green:270, rare:45 } },
     ]
   },
 };
@@ -864,10 +864,20 @@ function shake(amt, fr) { shakeAmt = amt; shakeFr = fr; }
 function haptic(ms = 10) { navigator.vibrate?.(ms); }
 
 function popup(x, y, text, color, big) {
-  popups.push({ x, y, text, color, life: 1.2, vy: -1.0, big: !!big });
+  const lineH = big ? 48 : 26;
+  let startY = y;
+  for (const p of popups) {
+    if (Math.abs(p.x - x) < 72) startY = Math.min(startY, p.y - lineH);
+  }
+  popups.push({ x, y: startY, text, color, life: 1.2, vy: -1.0, big: !!big });
 }
 function bigPopup(text, color) {
-  popups.push({ x: AW / 2, y: AH / 2 - 70, text, color, life: 1.8, vy: -0.4, big: true });
+  const baseY = AH / 2 - 70;
+  let startY = baseY;
+  for (const p of popups) {
+    if (Math.abs(p.x - AW / 2) < 120) startY = Math.min(startY, p.y - 52);
+  }
+  popups.push({ x: AW / 2, y: startY, text, color, life: 1.8, vy: -0.4, big: true });
 }
 
 function burstStar(x, y) {
