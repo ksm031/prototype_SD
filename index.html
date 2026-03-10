@@ -194,11 +194,14 @@ let COLORS = ALL_COLORS.slice(0, colorCount);
 
 // 시간 기반 단계: 0-60s=3색, 60-120s=4색, 120-180s=5색, 180s+=HYPER
 const PHASE_DEFS = [
-  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850' },
-  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040' },
-  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844' },
-  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366' },
+  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png' },
+  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png' },
+  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png' },
+  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png' },
 ];
+
+// 배경 이미지 프리로드
+const BG_IMGS = PHASE_DEFS.map(p => { const img = new Image(); img.src = p.bg; return img; });
 let currentPhase = 0;
 let hyperPulseTimer  = 0;   // ms since last pulse
 let hyperPulseActive = false;
@@ -814,16 +817,23 @@ function render(dt) {
   ctx.save();
   ctx.translate(ox, oy);
 
-  // Background — HYPER 시 붉게 숨쉬는 배경
+  // Background — 페이즈별 배경 이미지
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(-20, -20, AW + 40, AH + 40);
+  const bgImg = BG_IMGS[currentPhase];
+  if (bgImg && bgImg.complete && bgImg.naturalWidth) {
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(bgImg, 0, 0, AW, AH);
+    ctx.globalAlpha = 1.0;
+  }
+  // HYPER 시 붉게 숨쉬는 오버레이
   if (currentPhase === 3) {
     const b = hyperPulseActive
-      ? 20 + (Math.abs(Math.sin(now / 70)) * 35 | 0)   // 빠른 스트로브
-      : 10 + (Math.abs(Math.sin(now / 1400)) * 12 | 0); // 느린 호흡
-    ctx.fillStyle = `rgb(${b + 8},8,${b | 0})`;
-  } else {
-    ctx.fillStyle = '#1a1a2e';
+      ? 20 + (Math.abs(Math.sin(now / 70)) * 35 | 0)
+      : 10 + (Math.abs(Math.sin(now / 1400)) * 12 | 0);
+    ctx.fillStyle = `rgba(${b + 8},8,${b | 0},0.45)`;
+    ctx.fillRect(-20, -20, AW + 40, AH + 40);
   }
-  ctx.fillRect(-20, -20, AW + 40, AH + 40);
 
   drawGrid();
   drawRipples();
