@@ -405,7 +405,8 @@ function showMain() {
   document.getElementById('m-gold').textContent = getGold() + ' G';
 
   const mats = getMats();
-  const parts = Object.entries(mats).filter(([, v]) => v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
+  const parts = Object.entries(mats).filter(([k, v]) => k !== 'rare' && v > 0).map(([k, v]) => `${COLOR_ICON[k]}${v}`);
+  if (mats.rare > 0) parts.push(`⭐${mats.rare}`);
   document.getElementById('m-mats').textContent = parts.length ? parts.join(' ') : '—';
 
   showScreen('ms');
