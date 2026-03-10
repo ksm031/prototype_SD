@@ -881,7 +881,7 @@ function drawHUD() {
   ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
   // 하단 행: 드레인 속도 | 생존 시간 | 골드
-  const drainRate = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
+  const drainRate = (12.0 + gameElapsed / 1000 * 0.22) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
   const secStr    = Math.floor(gameElapsed / 1000) + 's';
 
   // 페이즈 레이블 (HP 바 위 가운데)
@@ -1184,7 +1184,7 @@ function loop(ts) {
     }
 
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
-    const drainRate  = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult * pulseMult;
+    const drainRate  = (12.0 + gameElapsed / 1000 * 0.22) * char.drainMult * pulseMult;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
   }
