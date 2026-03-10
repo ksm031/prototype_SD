@@ -172,6 +172,11 @@ const PHASE_DEFS = [
   { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366' },
 ];
 let currentPhase = 0;
+let hyperPulseTimer  = 0;   // ms since last pulse
+let hyperPulseActive = false;
+let hyperPulseRemain = 0;   // ms left in active pulse
+const PULSE_INTERVAL = 15000;
+const PULSE_DURATION = 3000;
 
 function getPhase(secElapsed) {
   for (let i = PHASE_DEFS.length - 1; i >= 0; i--)
@@ -715,6 +720,8 @@ function rRect(x, y, w, h, rad) {
 }
 
 function render(dt) {
+  const now = Date.now();
+
   // Shake offset
   let ox = 0, oy = 0;
   if (shakeFr > 0) {
@@ -723,11 +730,24 @@ function render(dt) {
     shakeFr--;
   }
 
+  // HYPER 웨이브 왜곡 (화면 좌우 + 상하 흔들림)
+  if (currentPhase === 3) {
+    ox += Math.sin(now / 350) * (hyperPulseActive ? 5 : 1.5);
+    oy += Math.cos(now / 500) * (hyperPulseActive ? 3 : 0.6);
+  }
+
   ctx.save();
   ctx.translate(ox, oy);
 
-  // Background
-  ctx.fillStyle = '#1a1a2e';
+  // Background — HYPER 시 붉게 숨쉬는 배경
+  if (currentPhase === 3) {
+    const b = hyperPulseActive
+      ? 20 + (Math.abs(Math.sin(now / 70)) * 35 | 0)   // 빠른 스트로브
+      : 10 + (Math.abs(Math.sin(now / 1400)) * 12 | 0); // 느린 호흡
+    ctx.fillStyle = `rgb(${b + 8},8,${b | 0})`;
+  } else {
+    ctx.fillStyle = '#1a1a2e';
+  }
   ctx.fillRect(-20, -20, AW + 40, AH + 40);
 
   drawGrid();
@@ -735,8 +755,17 @@ function render(dt) {
   drawChar();
   drawParticles();
   drawHUD();
-  drawPopups();
 
+  // HYPER 오버레이 (전체 화면 빨간 플래시)
+  if (currentPhase === 3) {
+    const alpha = hyperPulseActive
+      ? Math.abs(Math.sin(now / 55)) * 0.28   // 빠른 스트로브
+      : Math.abs(Math.sin(now / 1800)) * 0.07; // 잔잔한 붉은 기운
+    ctx.fillStyle = `rgba(255,20,55,${alpha.toFixed(3)})`;
+    ctx.fillRect(-20, -20, AW + 40, AH + 40);
+  }
+
+  drawPopups();
   ctx.restore();
 }
 
@@ -777,7 +806,7 @@ function drawHUD() {
   ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
   // 하단 행: 드레인 속도 | 생존 시간 | 골드
-  const drainRate = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult;
+  const drainRate = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
   const secStr    = Math.floor(gameElapsed / 1000) + 's';
 
   // 페이즈 레이블 (HP 바 우측 상단)
@@ -970,7 +999,27 @@ function loop(ts) {
   if (gstate === 'playing') {
     gameElapsed += raw;
     updatePhase();
-    const drainRate = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult;
+
+    // HYPER 펄스 타이머
+    if (currentPhase === 3) {
+      if (hyperPulseActive) {
+        hyperPulseRemain -= raw;
+        if (hyperPulseRemain <= 0) { hyperPulseActive = false; hyperPulseTimer = 0; }
+      } else {
+        hyperPulseTimer += raw;
+        if (hyperPulseTimer >= PULSE_INTERVAL) {
+          hyperPulseActive = true;
+          hyperPulseRemain = PULSE_DURATION;
+          bigPopup('PANIC!', '#ff2255');
+          shake(12, 14);
+        }
+      }
+    } else {
+      hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
+    }
+
+    const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
+    const drainRate  = (9.0 + gameElapsed / 1000 * 0.12) * char.drainMult * pulseMult;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
   }
@@ -1035,6 +1084,7 @@ function startGame() {
   sGold = 0; sBlocks = 0; sMaxCombo = 0; gameElapsed = 0;
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
+  hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = [];
   shakeFr = 0; shakeAmt = 0;
