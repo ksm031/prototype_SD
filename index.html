@@ -108,6 +108,7 @@
       Lv.4 달성 시 꾸미기 해금됩니다
     </div>
     <button class="btn btn-s" onclick="showMain()" style="margin-top:auto">← 돌아가기</button>
+    <button class="btn btn-s" onclick="resetSaveData()" style="margin-top:4px;color:#ff5555;border-color:rgba(255,85,85,.3)">🗑️ 저장 초기화</button>
   </div>
 
   <!-- GAME -->
@@ -1272,6 +1273,13 @@ function showShop() {
   showScreen('ss');
   shopTab('upgrade');
   renderUpgradeTab();
+}
+
+function resetSaveData() {
+  if (!confirm('모든 저장 데이터를 초기화합니다.\n골드, 재료, 강화 수치가 전부 사라집니다.\n계속하시겠습니까?')) return;
+  Object.values(SK).forEach(k => localStorage.removeItem(k));
+  renderUpgradeTab();
+  showMain();
 }
 
 // ═══════════════════════════════════════
