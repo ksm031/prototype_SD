@@ -93,6 +93,35 @@
       transition: background .15s, transform .1s;
     }
     #pause-btn:active { transform: scale(.9); }
+    /* ── artifact choice screen ── */
+    .art-card {
+      width: 100%; background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12); border-radius: 13px;
+      padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: background .15s, border-color .15s, transform .1s;
+    }
+    .art-card:active { transform: scale(.97); }
+    .art-card.common  { border-color: rgba(160,160,200,.25); }
+    .art-card.rare    { border-color: rgba(80,140,255,.45); background: rgba(80,140,255,.07); }
+    .art-card.legendary { border-color: rgba(240,192,64,.6); background: rgba(240,192,64,.10); }
+    .art-icon { font-size: 32px; width: 42px; text-align: center; flex-shrink: 0; }
+    .art-info { display: flex; flex-direction: column; gap: 2px; }
+    .art-name { font-size: 15px; font-weight: 700; color: #e0e0f0; }
+    .art-desc { font-size: 12px; color: #8080a8; }
+    .art-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; }
+    .art-badge.common  { background: rgba(160,160,200,.2); color: #a0a0c8; }
+    .art-badge.rare    { background: rgba(80,140,255,.2);  color: #5a9eff; }
+    .art-badge.legendary { background: rgba(240,192,64,.25); color: #f0c040; }
+    /* ── achievement tab ── */
+    .ach-item { display:flex; align-items:center; gap:10px; padding:10px 14px;
+      background:rgba(255,255,255,.04); border-radius:10px; border:1px solid rgba(255,255,255,.08); }
+    .ach-item.done { border-color: rgba(126,200,80,.35); background: rgba(126,200,80,.07); }
+    .ach-icon { font-size:22px; width:28px; text-align:center; flex-shrink:0; }
+    .ach-info { flex:1; display:flex; flex-direction:column; gap:1px; }
+    .ach-name { font-size:13px; font-weight:700; color:#e0e0f0; }
+    .ach-desc { font-size:11px; color:#606080; }
+    .ach-reward { font-size:11px; color:#f0c040; }
+    .ach-check { font-size:18px; }
   </style>
 </head>
 <body>
@@ -107,7 +136,7 @@
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
       <div class="stat-row"><span>🧪 재료</span><b id="m-mats" style="font-size:13px">—</b></div>
     </div>
-<button class="btn btn-p" onclick="startGame()">🎮 플레이</button>
+<button class="btn btn-p" onclick="startRun()">🎮 플레이</button>
     <button class="btn btn-s" onclick="showShop()">⚗️ 강화</button>
   </div>
 
@@ -122,9 +151,11 @@
     </div>
     <div style="width:100%;display:flex;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1)">
       <button id="tab-up"  onclick="shopTab('upgrade')" class="shop-tab shop-tab-active" style="flex:1">강화</button>
+      <button id="tab-ach" onclick="shopTab('achieve')" class="shop-tab"                 style="flex:1">도전</button>
       <button id="tab-dec" onclick="shopTab('deco')"    class="shop-tab"                 style="flex:1">꾸미기</button>
     </div>
     <div id="sh-upgrade" style="width:100%"></div>
+    <div id="sh-achieve" style="display:none;width:100%;display:none;flex-direction:column;gap:8px"></div>
     <div id="sh-deco" style="display:none;width:100%;text-align:center;color:#505070;padding:30px 0;font-size:13px">
       Lv.4 달성 시 꾸미기 해금됩니다
     </div>
@@ -155,18 +186,34 @@
   <div id="rs" class="screen">
     <div class="title" id="r-title" style="font-size:26px">세션 종료!</div>
     <div class="res-box">
+      <div class="res-row"><span>📍 도달 노드</span><b><span id="r-node">—</span></b></div>
       <div class="res-row"><span>⏳ 생존 시간</span><b><span id="r-time">0</span>초</b></div>
       <div class="res-row"><span>💥 소멸 블록</span><b><span id="r-blk">0</span>개</b></div>
       <div class="res-row"><span>⚡ 최대 연쇄</span><b><span id="r-combo">0</span>콤보</b></div>
+      <div class="res-row"><span>🎁 수집 아티팩트</span><b><span id="r-artifacts">0</span>개</b></div>
       <div class="res-row"><span>💰 획득 골드</span><b><span id="r-gold">0</span> G</b></div>
       <div class="res-row"><span>🏆 최장 생존</span><b><span id="r-best">0</span>초</b></div>
       <div class="res-row" id="r-mats-row" style="display:none">
         <span>🧪 획득 재료</span>
         <b><span id="r-mats"></span></b>
       </div>
+      <div id="r-ach-row" style="display:none;flex-direction:column;gap:4px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">
+        <div style="font-size:12px;color:#7ec850;font-weight:700">🏅 도전 과제 달성!</div>
+        <div id="r-ach-list" style="font-size:12px;color:#c0c0e0"></div>
+      </div>
     </div>
-    <button class="btn btn-p" onclick="startGame()">🔄 다시 하기</button>
+    <button class="btn btn-p" onclick="startRun()">🔄 새 런 시작</button>
     <button class="btn btn-s" onclick="showMain()">🏠 메인으로</button>
+  </div>
+
+  <!-- ARTIFACT CHOICE -->
+  <div id="af" class="screen" style="justify-content:flex-start;padding-top:20px;gap:12px;overflow-y:auto">
+    <div style="text-align:center">
+      <div style="font-size:12px;color:#7ec850;font-weight:700;letter-spacing:1px" id="af-node-label">노드 클리어!</div>
+      <div class="title" style="font-size:22px;margin-top:2px">🎁 아티팩트 선택</div>
+      <div style="font-size:11px;color:#505070;margin-top:2px">런 종료까지 유지됩니다</div>
+    </div>
+    <div id="af-list" style="width:100%;display:flex;flex-direction:column;gap:10px"></div>
   </div>
 
 </div>
@@ -220,8 +267,9 @@ const PULSE_INTERVAL = 15000;
 const PULSE_DURATION = 3000;
 
 function getPhase(secElapsed) {
-  for (let i = PHASE_DEFS.length - 1; i >= 0; i--)
-    if (secElapsed >= PHASE_DEFS[i].minSec) return i;
+  const defs = activePhaseDefs || PHASE_DEFS;
+  for (let i = defs.length - 1; i >= 0; i--)
+    if (secElapsed >= defs[i].minSec) return i;
   return 0;
 }
 
@@ -230,11 +278,25 @@ function updatePhase() {
   const p   = getPhase(sec);
   if (p !== currentPhase) {
     currentPhase = p;
-    const def = PHASE_DEFS[p];
+    const def = (activePhaseDefs || PHASE_DEFS)[p];
     colorCount = def.colors;
     COLORS = ALL_COLORS.slice(0, colorCount);
     bigPopup(def.label + '!', def.color);
     shake(6, 8);
+    // 페이즈 전환 시 아티팩트 HP 회복
+    if (char.phaseHealAmt > 0) {
+      char.hp = Math.min(char.maxHp, char.hp + char.phaseHealAmt);
+      popup(AW / 2, AH / 2 - 30, '+' + char.phaseHealAmt + ' HP', '#7ec850');
+    }
+    // HYPER 진입 시 hyperHeal 아티팩트
+    if (p === 3 && char.hyperHeal) {
+      char.hp = char.maxHp;
+      bigPopup('♾️ FULL HEAL!', '#3498db');
+    }
+    // 런 통계 업데이트
+    if (p === 3) {
+      const prog = getRunProg(); prog.hyperReached++; saveRunProg(prog);
+    }
   }
 }
 
@@ -256,8 +318,109 @@ const SPR = {};
   }
 })();
 
-const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats' };
+const SK = { gold: 'cc_gold', hs: 'cc_hs', mats: 'cc_mats', stats: 'cc_stats', achieve: 'cc_achievements', runprog: 'cc_run_progress' };
 const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢', purple: '🟣' };
+
+// ── 노드 정의 (FTL/슬더스 방식) ─────────────────────────
+const ACT_LABELS = ['ACT 1 — 초원 🌿', 'ACT 2 — 화산 🌋', 'ACT 3 — 혼돈 🌀'];
+const NODE_DEFS = [
+  // ACT 1
+  [
+    { label:'1-1',    type:'normal', clearSec:60,  drainMult:1.0, steelMult:1.0, hyperStart:180, pool:'common'  },
+    { label:'1-2',    type:'normal', clearSec:75,  drainMult:1.0, steelMult:1.1, hyperStart:180, pool:'common'  },
+    { label:'1-3',    type:'normal', clearSec:90,  drainMult:1.0, steelMult:1.2, hyperStart:180, pool:'common'  },
+    { label:'1-BOSS', type:'boss',   clearSec:120, drainMult:1.2, steelMult:2.0, hyperStart:180, pool:'rare'    },
+  ],
+  // ACT 2
+  [
+    { label:'2-1',    type:'normal', clearSec:90,  drainMult:1.2, steelMult:1.3, hyperStart:180, pool:'common'  },
+    { label:'2-2',    type:'normal', clearSec:100, drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'common'  },
+    { label:'2-3',    type:'elite',  clearSec:90,  drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'rare', fastPulse:true },
+    { label:'2-BOSS', type:'boss',   clearSec:150, drainMult:1.5, steelMult:2.0, hyperStart:100, pool:'rare'    },
+  ],
+  // ACT 3
+  [
+    { label:'3-1',    type:'normal', clearSec:100, drainMult:1.5, steelMult:1.5, hyperStart:180, pool:'common'  },
+    { label:'3-2',    type:'elite',  clearSec:110, drainMult:1.6, steelMult:1.6, hyperStart:180, pool:'rare'    },
+    { label:'3-3',    type:'elite',  clearSec:120, drainMult:1.7, steelMult:1.7, hyperStart:180, pool:'rare'    },
+    { label:'FINAL',  type:'final',  clearSec:180, drainMult:2.0, steelMult:2.5, hyperStart:90,  pool:'legendary'},
+  ],
+];
+
+// ── 아티팩트 풀 (30종) ───────────────────────────────────
+const ARTIFACT_POOL = [
+  // ─ 일반 (16종) ─
+  { id:'first_aid',     name:'응급 키트',      icon:'🩹', rarity:'common',    desc:'블록당 HP 회복 +1.5',         apply: c => { c.hpPerBlock += 1.5 * c.maxHp / 100; } },
+  { id:'attract_core',  name:'인력 코어',      icon:'🧲', rarity:'common',    desc:'연쇄 충격 범위 +1',           apply: c => { c.impactRange += 1; } },
+  { id:'chain_gear',    name:'연쇄 기어',      icon:'⚙️', rarity:'common',    desc:'연쇄 간격 -10ms',             apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 10); } },
+  { id:'sprint_boots',  name:'질주의 신발',    icon:'🏃', rarity:'common',    desc:'이동 시간 -50ms',             apply: c => { c.travelMs = Math.max(80, c.travelMs - 50); } },
+  { id:'gold_finger',   name:'황금 손가락',    icon:'💰', rarity:'common',    desc:'블록당 골드 +3',              apply: c => { c.goldPerBlock += 3; } },
+  { id:'vitality_src',  name:'활력의 근원',    icon:'❤️', rarity:'common',    desc:'최대 HP +20',                 apply: c => { c.maxHp += 20; c.hp = Math.min(c.maxHp, c.hp + 20); } },
+  { id:'life_sprout',   name:'생명의 새싹',    icon:'🌿', rarity:'common',    desc:'HP 드레인 -8%',               apply: c => { c.drainMult *= 0.92; } },
+  { id:'crystal_shard', name:'결정 파편',      icon:'💎', rarity:'common',    desc:'전설 블록 출현율 +0.15%',     apply: c => { c.legendSpawnRate += 0.0015; } },
+  { id:'alch_flask',    name:'연금술 플라스크',icon:'🧪', rarity:'common',    desc:'재료 드롭 기준 -1 (최소 2)',  apply: c => { c.matDropEvery = Math.max(2, c.matDropEvery - 1); } },
+  { id:'aim_lens',      name:'조준 렌즈',      icon:'🎯', rarity:'common',    desc:'콤보 5+ 시 추가 골드 +10',    apply: c => { c.comboGoldBonus += 10; } },
+  { id:'energy_pack',   name:'에너지 팩',      icon:'🔋', rarity:'common',    desc:'페이즈 전환 시 HP +20 회복',  apply: c => { c.phaseHealAmt += 20; } },
+  { id:'chain_boost',   name:'연쇄 가속기',    icon:'🌀', rarity:'common',    desc:'연쇄 간격 추가 -5ms',         apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 5); } },
+  { id:'defense_orb',   name:'방어의 오브',    icon:'🛡️', rarity:'common',    desc:'HP < 30% 시 드레인 -30%',     apply: c => { c.lowHpShield = true; } },
+  { id:'bomb_seed',     name:'폭발 씨앗',      icon:'💥', rarity:'common',    desc:'폭탄 발동 조건 -5콤보',       apply: c => { c.bombThreshold = Math.max(8, c.bombThreshold - 5); } },
+  { id:'firework_amp',  name:'불꽃 증폭기',    icon:'🧨', rarity:'common',    desc:'불꽃 발동 조건 -4콤보',       apply: c => { c.fireworkThreshold = Math.max(4, c.fireworkThreshold - 4); } },
+  { id:'lucky_seal',    name:'행운의 각인',    icon:'🔶', rarity:'common',    desc:'아이템 발동 조건 -2콤보',     apply: c => { c.bombThreshold = Math.max(8, c.bombThreshold - 2); c.fireworkThreshold = Math.max(4, c.fireworkThreshold - 2); } },
+  // ─ 희귀 (10종) ─
+  { id:'steel_breaker', name:'강철 분쇄기',    icon:'⚔️', rarity:'rare',      desc:'강철 블록을 일반처럼 파괴',   apply: c => { c.steelBreaker = true; } },
+  { id:'blood_pact',    name:'혈액 계약',      icon:'🩸', rarity:'rare',      desc:'드레인 +30%, 블록 회복 ×2',  apply: c => { c.drainMult *= 1.3; c.hpPerBlock *= 2; } },
+  { id:'legend_light',  name:'전설의 빛',      icon:'🌟', rarity:'rare',      desc:'전설 출현율 ×3, 재료 +2',    apply: c => { c.legendSpawnRate *= 3; c.legendMatBonus += 2; } },
+  { id:'time_crystal',  name:'시간 결정체',    icon:'⏱️', rarity:'rare',      desc:'각 페이즈 지속 시간 +20초',   apply: c => { c.phaseTimeBonus += 20; } },
+  { id:'storm_catalyst',name:'폭풍 촉매',      icon:'🎇', rarity:'rare',      desc:'폭탄 반경 +2 (5×5→9×9)',     apply: c => { c.bombRadius += 2; } },
+  { id:'chain_amp',     name:'연쇄 증폭기',    icon:'💫', rarity:'rare',      desc:'체인 5개마다 HP +5 추가 회복',apply: c => { c.chainHealBonus += 5 * c.maxHp / 100; } },
+  { id:'chaos_force',   name:'혼돈의 힘',      icon:'🌪️', rarity:'rare',      desc:'HYPER 진입 시 HP 전체 회복', apply: c => { c.hyperHeal = true; } },
+  { id:'emperor_seal',  name:'황제의 인장',    icon:'👑', rarity:'rare',      desc:'골드 획득 ×1.5',              apply: c => { c.goldMult *= 1.5; } },
+  { id:'magic_orb',     name:'마력 수정구',    icon:'🔮', rarity:'rare',      desc:'충격 범위 +2, 연쇄 간격 -15ms', apply: c => { c.impactRange += 2; c.chainDelay = Math.max(10, c.chainDelay - 15); } },
+  { id:'butterfly',     name:'변화의 날개',    icon:'🦋', rarity:'rare',      desc:'페이즈 전환마다 HP +35 회복', apply: c => { c.phaseHealAmt += 35; } },
+  // ─ 전설 (4종) ─
+  { id:'rainbow_core',  name:'무지개 코어',    icon:'🌈', rarity:'legendary', desc:'충격 범위 +3, 연쇄 간격 -20ms, 회복 +3',
+    apply: c => { c.impactRange += 3; c.chainDelay = Math.max(10, c.chainDelay - 20); c.hpPerBlock += 3 * c.maxHp / 100; } },
+  { id:'eternal_heart', name:'영원의 심장',    icon:'♾️', rarity:'legendary', desc:'드레인 ×0.3, 최대 HP +50',
+    apply: c => { c.drainMult *= 0.3; c.maxHp += 50; c.hp = Math.min(c.maxHp, c.hp + 50); } },
+  { id:'supernova',     name:'초신성',         icon:'💣', rarity:'legendary', desc:'15초마다 자동 폭탄 발동',
+    apply: c => { c.supernova = true; c.supernovaTimer = 0; } },
+  { id:'conqueror',     name:'정복자의 왕관',  icon:'🏆', rarity:'legendary', desc:'모든 수치 10% 향상, 골드 ×2',
+    apply: c => { c.hpPerBlock *= 1.1; c.impactRange = Math.ceil(c.impactRange * 1.1); c.chainDelay = Math.max(10, Math.floor(c.chainDelay * 0.9)); c.travelMs = Math.max(80, Math.floor(c.travelMs * 0.9)); c.drainMult *= 0.9; c.goldMult *= 2.0; } },
+];
+
+// ── 도전 과제 정의 ───────────────────────────────────────
+const ACHIEVEMENT_DEFS = [
+  { id:'first_run',      name:'첫 발걸음',    desc:'런 1번 시작',                 icon:'🐾', rewardGold:500,   rewardRare:0,
+    check: s => s.totalRuns >= 1 },
+  { id:'act1_clear',     name:'탐험가',       desc:'ACT 1 클리어 (1-BOSS 생존)',   icon:'🌿', rewardGold:2000,  rewardRare:0,
+    check: s => s.act1Clears >= 1 },
+  { id:'act2_clear',     name:'도전자',       desc:'ACT 2 클리어 (2-BOSS 생존)',   icon:'🌋', rewardGold:5000,  rewardRare:0,
+    check: s => s.act2Clears >= 1 },
+  { id:'final_clear',    name:'정복자',       desc:'FINAL BOSS 클리어',            icon:'🏆', rewardGold:15000, rewardRare:20,
+    check: s => s.wins >= 1 },
+  { id:'combo_god',      name:'연쇄의 신',    desc:'50콤보 달성',                  icon:'⚡', rewardGold:1000,  rewardRare:0,
+    check: s => s.maxComboEver >= 50 },
+  { id:'legend_hunter',  name:'전설 수집가',  desc:'전설 블록 5개 획득',           icon:'⭐', rewardGold:1500,  rewardRare:0,
+    check: s => s.lifetimeLegendary >= 5 },
+  { id:'artifact_fan',   name:'아티팩트 덕후',desc:'1런에 아티팩트 8개 수집',      icon:'🎁', rewardGold:3000,  rewardRare:0,
+    check: s => s.maxArtifactsInRun >= 8 },
+  { id:'full_upgrade1',  name:'완전 강화',    desc:'스탯 1개 풀강화',              icon:'💎', rewardGold:0,     rewardRare:10,
+    check: () => Object.keys(STATS).some(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
+  { id:'full_upgrade_all',name:'모두 강화',   desc:'전 스탯 풀강화',               icon:'🌟', rewardGold:0,     rewardRare:50,
+    check: () => Object.keys(STATS).every(id => getStatLevel(id) >= STATS[id].tiers.length - 1) },
+  { id:'block_king',     name:'블록 파괴왕',  desc:'누적 블록 1000개 파괴',        icon:'💥', rewardGold:1000,  rewardRare:0,
+    check: s => s.lifetimeBlocks >= 1000 },
+  { id:'hyper_reach',    name:'HYPER 도달',   desc:'HYPER 단계 진입',              icon:'🔥', rewardGold:500,   rewardRare:0,
+    check: s => s.hyperReached >= 1 },
+  { id:'perfect_node',   name:'완벽한 생존',  desc:'HP 100 유지로 노드 클리어',    icon:'💯', rewardGold:2000,  rewardRare:5,
+    check: s => s.perfectNodeClears >= 1 },
+  { id:'ten_runs',       name:'반복의 힘',    desc:'10런 플레이',                  icon:'🔄', rewardGold:5000,  rewardRare:0,
+    check: s => s.totalRuns >= 10 },
+  { id:'five_min',       name:'5분 생존',     desc:'단일 노드에서 5분 생존',       icon:'⏱️', rewardGold:2000,  rewardRare:0,
+    check: s => s.maxNodeSec >= 300 },
+  { id:'legend_art',     name:'최강 빌드',    desc:'전설 아티팩트 보유',           icon:'🌈', rewardGold:3000,  rewardRare:10,
+    check: s => s.legendaryArtifactsEver >= 1 },
+];
 const MAX_PARTICLES = 300;
 const MAX_RIPPLES   = 40;
 const MAX_POPUPS    = 20;
@@ -363,6 +526,13 @@ let steelSpawnTimer = 0; // ms until next steel block spawn
 let targetChainId = -1;  // 탭 시 강조할 체인 ID
 let pendingTimers = new Set();
 
+// ── 런/노드 상태 ─────────────────────────────────────────
+let runState = { act: 0, node: 0, artifacts: [] };
+let nodeConfig = null;        // 현재 노드 설정 (NODE_DEFS[act][node])
+let activePhaseDefs = null;   // 이번 노드에 적용되는 페이즈 정의
+let nodeClearTriggered = false;
+let prevPhase = -1;           // 페이즈 전환 감지용
+
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
 let popups    = [];  // { x,y,text,color,life,vy,big }
@@ -378,12 +548,19 @@ const getHS   = () => +(localStorage.getItem(SK.hs)   || 0);
 const saveGold = v => localStorage.setItem(SK.gold, v);
 const saveHS   = v => localStorage.setItem(SK.hs,   v);
 
+const DEFAULT_RUN_PROG = { totalRuns:0, wins:0, act1Clears:0, act2Clears:0, maxComboEver:0, lifetimeBlocks:0, lifetimeLegendary:0, maxArtifactsInRun:0, hyperReached:0, perfectNodeClears:0, maxNodeSec:0, legendaryArtifactsEver:0 };
+const getRunProg  = () => Object.assign({}, DEFAULT_RUN_PROG, JSON.parse(localStorage.getItem(SK.runprog) || '{}'));
+const saveRunProg = v  => localStorage.setItem(SK.runprog, JSON.stringify(v));
+const getAchievements  = () => JSON.parse(localStorage.getItem(SK.achieve) || '{}');
+const saveAchievements = v  => localStorage.setItem(SK.achieve, JSON.stringify(v));
+
 // ═══════════════════════════════════════
 //  SCREEN
 // ═══════════════════════════════════════
 function showScreen(id) {
-  ['ms','rs','ss'].forEach(s => {
+  ['ms','rs','ss','af'].forEach(s => {
     const el = document.getElementById(s);
+    if (!el) return;
     el.style.display = 'none';
     el.classList.remove('active');
   });
@@ -419,7 +596,8 @@ function showMain() {
 //  GRID
 // ═══════════════════════════════════════
 function mkBlock(color) {
-  if (!color && Math.random() < 0.002) color = 'legendary';
+  const legendRate = (char && char.legendSpawnRate) ? char.legendSpawnRate : 0.002;
+  if (!color && Math.random() < legendRate) color = 'legendary';
   return { color: color || COLORS[Math.floor(Math.random() * COLORS.length)], chainId: -1, hp: 1, animY: null, fallV: 0 };
 }
 
@@ -473,6 +651,13 @@ function removeBlock(r, c) {
   const blk = grid[r][c];
   const color = blk.color;
   if (blk.steel) {
+    if (char.steelBreaker) {
+      // 강철 분쇄기 아티팩트: 일반 블록처럼 처리
+      burstParticles(r, c, '#aab4c2');
+      if (sDestroyed) sDestroyed.red = (sDestroyed.red || 0); // count in generic sBlocks
+      grid[r][c] = null;
+      return;
+    }
     // 강철 블럭은 일반 공격 면역 — 클랭 이펙트만
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.4, life: 0.6 });
     shake(3, 4);
@@ -491,9 +676,12 @@ function removeBlock(r, c) {
     return;
   }
   if (color === 'legendary') {
-    const m = getMats(); m.rare = (m.rare || 0) + 1; saveMats(m);
+    const bonus = (char && char.legendMatBonus) ? char.legendMatBonus : 0;
+    const rareGain = 1 + bonus;
+    const m = getMats(); m.rare = (m.rare || 0) + rareGain; saveMats(m);
+    const prog = getRunProg(); prog.lifetimeLegendary++; saveRunProg(prog);
     spawnStarBurst(GX + c * CELL + CELL / 2, GY + r * CELL + CELL / 2);
-    popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL, text: '⭐ +1', color: '#ffe066', life: 1.0, vy: -1.8, big: true });
+    popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL, text: '⭐ +' + rareGain, color: '#ffe066', life: 1.0, vy: -1.8, big: true });
   } else if (sDestroyed[color] !== undefined) {
     sDestroyed[color]++;
   }
@@ -547,13 +735,14 @@ function updateBlockAnims(dt) {
 //  CHARACTER
 // ═══════════════════════════════════════
 function initChar() {
+  const baseMaxHp = getStatValue('maxhp');
   char = {
     x: BASE_X, y: BASE_Y,
     tx: BASE_X, ty: BASE_Y,
     state: 'idle',
-    maxHp: getStatValue('maxhp'),
-    hp:    getStatValue('maxhp'),
-    hpPerBlock:  getStatValue('recovery') * getStatValue('maxhp') / 100,
+    maxHp: baseMaxHp,
+    hp:    baseMaxHp,
+    hpPerBlock:  getStatValue('recovery') * baseMaxHp / 100,
     impactRange: getStatValue('impact'),
     chainDelay:  getStatValue('speed'),
     drainMult:   getStatValue('vitality'),
@@ -564,7 +753,41 @@ function initChar() {
     sc: 1.0,
     sprFrame: 'idle_01',
     frameT: 0,
+    // 아티팩트 적용 필드 (기본값)
+    goldPerBlock:       10,
+    goldMult:           1.0,
+    comboGoldBonus:     0,
+    legendSpawnRate:    0.002,
+    legendMatBonus:     0,
+    matDropEvery:       5,
+    phaseHealAmt:       0,
+    phaseTimeBonus:     0,
+    chainHealBonus:     0,
+    bombRadius:         BOMB_RADIUS,
+    bombThreshold:      22,
+    fireworkThreshold:  12,
+    steelBreaker:       false,
+    lowHpShield:        false,
+    hyperHeal:          false,
+    supernova:          false,
+    supernovaTimer:     0,
   };
+  applyArtifacts();
+  // 노드 드레인 배율 (아티팩트 vitality 위에 추가로 적용)
+  if (nodeConfig) char.drainMult *= nodeConfig.drainMult;
+  // phaseTimeBonus → activePhaseDefs에 반영
+  if (char.phaseTimeBonus > 0 && activePhaseDefs) {
+    for (let i = 1; i < activePhaseDefs.length; i++) {
+      activePhaseDefs[i] = { ...activePhaseDefs[i], minSec: PHASE_DEFS[i].minSec + char.phaseTimeBonus };
+    }
+  }
+}
+
+function applyArtifacts() {
+  for (const artId of runState.artifacts) {
+    const art = ARTIFACT_POOL.find(a => a.id === artId);
+    if (art && art.apply) art.apply(char);
+  }
 }
 
 function goBase() {
@@ -656,7 +879,7 @@ function startEat(r, c) {
   if (chain.length === 1) {
     removeBlock(r, c);
     sBlocks++;
-    sGold += 10;
+    sGold += Math.round(char.goldPerBlock * char.goldMult);
     popup(char.x, char.y - 44, '…', '#888899');
     char.state = 'returning';
     safeTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
@@ -674,7 +897,12 @@ function byDist(blocks, sr, sc) {
 
 function healFromBlock(chainSize) {
   const bonus = Math.max(1.0, 1 + (chainSize - 2) * 0.1);
-  char.hp = Math.min(char.maxHp, char.hp + char.hpPerBlock * bonus);
+  let heal = char.hpPerBlock * bonus;
+  // chainHealBonus: 체인 5개마다 추가 회복
+  if (char.chainHealBonus > 0 && chainSize >= 5 && Math.floor(chainSize / 5) > 0) {
+    heal += char.chainHealBonus;
+  }
+  char.hp = Math.min(char.maxHp, char.hp + heal);
 }
 
 function runChain(chainBlocks, sr, sc) {
@@ -698,7 +926,7 @@ function runChain(chainBlocks, sr, sc) {
         healFromBlock(chainSize);
         combo++;
         sBlocks++;
-        sGold += 10;
+        sGold += Math.round(char.goldPerBlock * char.goldMult);
       }
       finishChain(combo);
       return;
@@ -711,7 +939,7 @@ function runChain(chainBlocks, sr, sc) {
     healFromBlock(chainSize);
     combo++;
     sBlocks++;
-    sGold += 10;
+    sGold += Math.round(char.goldPerBlock * char.goldMult);
     shake(2, 3);  // 블록 팝마다 약한 진동
     haptic(8);
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
@@ -777,28 +1005,29 @@ function triggerFirework(r, c) {
 }
 
 function triggerBomb(r, c) {
+  const bRad = (char && char.bombRadius) ? char.bombRadius : BOMB_RADIUS;
   shake(16, 32);
   haptic([30, 10, 60, 10, 30]);
   bigPopup('💣 BOOM!!', '#a855f7');
-  // 반경 사각형 플래시
-  const x1 = GX + Math.max(0, c - BOMB_RADIUS) * CELL;
-  const y1 = GY + Math.max(0, r - BOMB_RADIUS) * CELL;
-  const x2 = GX + (Math.min(COLS - 1, c + BOMB_RADIUS) + 1) * CELL;
-  const y2 = GY + (Math.min(ROWS - 1, r + BOMB_RADIUS) + 1) * CELL;
+  const x1 = GX + Math.max(0, c - bRad) * CELL;
+  const y1 = GY + Math.max(0, r - bRad) * CELL;
+  const x2 = GX + (Math.min(COLS - 1, c + bRad) + 1) * CELL;
+  const y2 = GY + (Math.min(ROWS - 1, r + bRad) + 1) * CELL;
   flashes.push({ x: x1, y: y1, w: x2 - x1, h: y2 - y1,
                  color: '#a855f7', life: 1.0, type: 'area' });
   const cells = [];
-  for (let dr = -BOMB_RADIUS; dr <= BOMB_RADIUS; dr++)
-    for (let dc = -BOMB_RADIUS; dc <= BOMB_RADIUS; dc++)
+  for (let dr = -bRad; dr <= bRad; dr++)
+    for (let dc = -bRad; dc <= bRad; dc++)
       cells.push([r + dr, c + dc]);
   const destroyed = clearCells(cells, '#a855f7');
   for (let i = 0; i < destroyed; i++) healFromBlock(destroyed);
 }
 
 function dropItemBlock(combo) {
-  const tier = ITEM_DROP_TIERS.find(t => combo >= t.threshold);
-  if (!tier) return;
-  const type = tier.type;
+  const bombThr = (char && char.bombThreshold) ? char.bombThreshold : 22;
+  const fwThr   = (char && char.fireworkThreshold) ? char.fireworkThreshold : 12;
+  const type = combo >= bombThr ? 'bomb' : combo >= fwThr ? 'firework' : null;
+  if (!type) return;
 
   const candidates = [];
   for (let r = 0; r < ROWS; r++)
@@ -815,7 +1044,10 @@ function dropItemBlock(combo) {
 
 function finishChain(combo) {
   if (combo > sMaxCombo) sMaxCombo = combo;
-  if (combo >= 5) sGold += combo * 5;
+  if (combo >= 5) {
+    const bonusGold = Math.round((combo * 5 + char.comboGoldBonus) * char.goldMult);
+    sGold += bonusGold;
+  }
 
   const milestone = COMBO_MILESTONES.find(m => combo >= m.threshold);
   if (milestone) {
@@ -1030,12 +1262,11 @@ function drawHUD() {
   ctx.textBaseline = 'middle';
   ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
-  // 하단 행: 드레인 속도 | 생존 시간 | 골드
+  // 하단 행: 드레인 속도 | 생존 시간 / 노드 진행 | 골드
   const drainRate = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
-  const secStr    = Math.floor(gameElapsed / 1000) + 's';
 
   // 페이즈 레이블 (HP 바 위 가운데)
-  const pdef = PHASE_DEFS[currentPhase];
+  const pdef = (activePhaseDefs || PHASE_DEFS)[currentPhase];
   ctx.save();
   ctx.font = 'bold 9px system-ui';
   ctx.textAlign = 'center';
@@ -1053,16 +1284,42 @@ function drawHUD() {
   ctx.textAlign = 'left';
   ctx.fillText(`🔥 ${drainRate.toFixed(1)}/s`, BAR_X, 44);
 
-  // 생존 시간 (중앙)
-  ctx.fillStyle = '#8888aa';
-  ctx.textAlign = 'center';
-  ctx.fillText(secStr, AW / 2, 44);
+  // 노드 진행 (중앙): "1-2  45s/75s"
+  if (nodeConfig) {
+    const elapsed = Math.floor(gameElapsed / 1000);
+    const remain  = Math.max(0, nodeConfig.clearSec - elapsed);
+    const nodeTypeColor = nodeConfig.type === 'boss' || nodeConfig.type === 'final' ? '#ff8844' : '#8888aa';
+    ctx.fillStyle = nodeTypeColor;
+    ctx.textAlign = 'center';
+    ctx.font = '11px system-ui';
+    ctx.fillText(`[${nodeConfig.label}]  ⏳${remain}s`, AW / 2, 44);
+  }
 
   // 골드 (우)
   ctx.fillStyle = '#f0c040';
   ctx.font = 'bold 12px system-ui';
   ctx.textAlign = 'right';
   ctx.fillText(sGold + ' G', AW - BAR_X, 44);
+
+  // 아티팩트 아이콘 스트립 (하단, 그리드 아래)
+  if (runState.artifacts.length > 0) {
+    const STRIP_Y = AH - 22;
+    ctx.fillStyle = 'rgba(10,10,22,0.80)';
+    ctx.fillRect(0, STRIP_Y - 4, AW, 26);
+    ctx.font = '14px system-ui';
+    ctx.textBaseline = 'middle';
+    const iconW = 20;
+    const totalW = runState.artifacts.length * iconW;
+    let ix = (AW - totalW) / 2;
+    for (const artId of runState.artifacts) {
+      const art = ARTIFACT_POOL.find(a => a.id === artId);
+      if (art) {
+        ctx.textAlign = 'center';
+        ctx.fillText(art.icon, ix + iconW / 2, STRIP_Y + 9);
+      }
+      ix += iconW;
+    }
+  }
 }
 
 function drawGrid() {
@@ -1440,13 +1697,32 @@ function loop(ts) {
     steelSpawnTimer -= raw;
     if (steelSpawnTimer <= 0) {
       spawnSteel();
-      steelSpawnTimer = PHASE_DEFS[Math.min(currentPhase, PHASE_DEFS.length - 1)].steelInterval;
+      const aph = activePhaseDefs || PHASE_DEFS;
+      steelSpawnTimer = aph[Math.min(currentPhase, aph.length - 1)].steelInterval;
     }
 
     const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
-    const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * pulseMult;
+    let drainMultFinal = char.drainMult * pulseMult;
+    // 방어의 오브: HP < 30% 시 드레인 -30%
+    if (char.lowHpShield && char.hp / char.maxHp < 0.30) drainMultFinal *= 0.7;
+    const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * drainMultFinal;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
+
+    // 노드 클리어 체크
+    if (!nodeClearTriggered && nodeConfig && gameElapsed >= nodeConfig.clearSec * 1000) {
+      nodeClearTriggered = true;
+      nodeCleared();
+    }
+
+    // 초신성 아티팩트: 15초마다 자동 폭탄
+    if (char.supernova && gstate === 'playing') {
+      char.supernovaTimer += raw;
+      if (char.supernovaTimer >= 15000) {
+        char.supernovaTimer = 0;
+        triggerBomb(Math.floor(ROWS / 2), Math.floor(COLS / 2));
+      }
+    }
   }
 
   updateChar(dt);
@@ -1542,14 +1818,35 @@ function safeTimeout(fn, ms) {
   return id;
 }
 
-function startGame() {
+// ── 런/노드 플로우 ──────────────────────────────────────
+function startRun() {
+  runState = { act: 0, node: 0, artifacts: [] };
+  // 런 카운트 증가
+  const prog = getRunProg(); prog.totalRuns++; saveRunProg(prog);
+  startNode(0, 0);
+}
+
+function startNode(act, nodeIdx) {
+  runState.act  = act;
+  runState.node = nodeIdx;
+  nodeConfig = NODE_DEFS[act][nodeIdx];
+  nodeClearTriggered = false;
+  prevPhase = -1;
+
+  // activePhaseDefs: HYPER 시작 시간 + 강철 간격 노드 배율 적용
+  activePhaseDefs = PHASE_DEFS.map((p, i) => ({
+    ...p,
+    minSec: i === 3 ? nodeConfig.hyperStart : p.minSec,
+    steelInterval: Math.round(p.steelInterval / (nodeConfig.steelMult || 1.0)),
+  }));
+
   stopGame();
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0; gameElapsed = 0;
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
-  steelSpawnTimer = PHASE_DEFS[0].steelInterval;
+  steelSpawnTimer = activePhaseDefs[0].steelInterval;
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
@@ -1560,31 +1857,172 @@ function startGame() {
   rafID = requestAnimationFrame(loop);
 }
 
-function showResult() {
-  const earned   = Math.max(10, sGold);
-  const newGold  = getGold() + earned;
+function nodeCleared() {
+  if (gstate !== 'playing') return;
+  gstate = 'over';
+  const isFinal = nodeConfig.type === 'final';
+  if (isFinal) {
+    shake(18, 50);
+    bigPopup('🏆 CLEAR!!', '#f0c040');
+    // 최종 클리어 기록
+    const prog = getRunProg(); prog.wins++; saveRunProg(prog);
+  } else {
+    const isBoss = nodeConfig.type === 'boss';
+    shake(isBoss ? 14 : 8, isBoss ? 30 : 16);
+    bigPopup(nodeConfig.label + ' CLEAR!', isBoss ? '#ff8844' : '#7ec850');
+    // Act 클리어 기록
+    if (nodeConfig.type === 'boss') {
+      const prog = getRunProg();
+      if (runState.act === 0) prog.act1Clears++;
+      if (runState.act === 1) prog.act2Clears++;
+      saveRunProg(prog);
+    }
+  }
+  // 완벽 클리어 체크 (HP 100% 유지)
+  if (Math.ceil(char.hp) >= char.maxHp) {
+    const prog = getRunProg(); prog.perfectNodeClears++; saveRunProg(prog);
+  }
+  // 노드 생존 시간 기록
+  const nodeSec = Math.floor(gameElapsed / 1000);
+  const prog2 = getRunProg();
+  if (nodeSec > prog2.maxNodeSec) { prog2.maxNodeSec = nodeSec; saveRunProg(prog2); }
+
+  // 중간 노드만 여기서 골드/재료 적립 (최종 노드는 showResult에서 처리)
+  if (!isFinal) {
+    const earned = Math.max(10, sGold);
+    saveGold(getGold() + earned);
+    const matEvery = (char && char.matDropEvery) ? char.matDropEvery : 5;
+    const gainedMats = {};
+    for (const [color, cnt] of Object.entries(sDestroyed)) {
+      const g = Math.floor(cnt / matEvery);
+      if (g > 0) gainedMats[color] = g;
+    }
+    addMats(gainedMats);
+    // 블록 통계 누적
+    const p3 = getRunProg(); p3.lifetimeBlocks += sBlocks; if (sMaxCombo > p3.maxComboEver) p3.maxComboEver = sMaxCombo; saveRunProg(p3);
+  }
+
+  slowFactor = 0.2;
+  safeTimeout(() => {
+    slowFactor = 1.0;
+    if (isFinal) {
+      // 최종 클리어 → 결과 화면
+      showResult(true);
+    } else {
+      showArtifactChoice();
+    }
+  }, 1600);
+}
+
+function getArtifactChoices(pool) {
+  const rarities = pool === 'common'    ? ['common']
+                 : pool === 'rare'      ? ['common', 'rare']
+                 : ['common', 'rare', 'legendary'];
+  const available = ARTIFACT_POOL.filter(a => rarities.includes(a.rarity) && !runState.artifacts.includes(a.id));
+  const shuffled  = [...available].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(3, shuffled.length));
+}
+
+function showArtifactChoice() {
+  stopGame();
+  const choices = getArtifactChoices(nodeConfig.pool);
+  const actLabel = ACT_LABELS[runState.act] || '';
+  document.getElementById('af-node-label').textContent =
+    `${actLabel}  ·  노드 ${nodeConfig.label} 클리어!`;
+
+  const rarityLabel = { common: '일반', rare: '희귀', legendary: '전설' };
+  const list = document.getElementById('af-list');
+  list.innerHTML = choices.map(art => `
+    <div class="art-card ${art.rarity}" onclick="selectArtifact('${art.id}')">
+      <div class="art-icon">${art.icon}</div>
+      <div class="art-info">
+        <div class="art-name">${art.name}</div>
+        <div class="art-desc">${art.desc}</div>
+        <span class="art-badge ${art.rarity}">${rarityLabel[art.rarity] || art.rarity}</span>
+      </div>
+    </div>
+  `).join('');
+
+  showScreen('af');
+}
+
+function selectArtifact(id) {
+  runState.artifacts.push(id);
+  // 전설 아티팩트 수집 통계
+  const art = ARTIFACT_POOL.find(a => a.id === id);
+  if (art && art.rarity === 'legendary') {
+    const prog = getRunProg(); prog.legendaryArtifactsEver++; saveRunProg(prog);
+  }
+  // 최대 아티팩트 수 기록
+  const prog = getRunProg();
+  if (runState.artifacts.length > prog.maxArtifactsInRun) {
+    prog.maxArtifactsInRun = runState.artifacts.length; saveRunProg(prog);
+  }
+  // 다음 노드로
+  nextNode();
+}
+
+function nextNode() {
+  const actNodes = NODE_DEFS[runState.act];
+  const nextNodeIdx = runState.node + 1;
+  if (nextNodeIdx < actNodes.length) {
+    startNode(runState.act, nextNodeIdx);
+  } else {
+    const nextAct = runState.act + 1;
+    if (nextAct < NODE_DEFS.length) {
+      startNode(nextAct, 0);
+    } else {
+      // 모든 ACT 클리어 (여기선 도달 불가, FINAL이 먼저 처리)
+      showResult(true);
+    }
+  }
+}
+
+// 기존 startGame은 startRun의 별칭으로 유지 (호환성)
+function startGame() { startRun(); }
+
+function showResult(fromNodeClear) {
+  // 골드 + 재료 정산 (nodeCleared 중간 노드는 이미 처리함 → 여기선 death or final)
+  const earned  = Math.max(10, sGold);
   const survived = Math.floor(gameElapsed / 1000);
   const newBest  = Math.max(getHS(), survived);
-  saveGold(newGold);
+  if (!fromNodeClear) {
+    // 사망 케이스: 이번 노드 골드/재료 여기서 저장
+    saveGold(getGold() + earned);
+  } else {
+    // 최종 클리어: 노드 골드/재료도 저장 (중간 노드는 nodeCleared에서 저장됨)
+    saveGold(getGold() + earned);
+  }
   saveHS(newBest);
 
-  document.getElementById('r-time').textContent  = survived;
-  document.getElementById('r-blk').textContent   = sBlocks;
-  document.getElementById('r-combo').textContent  = sMaxCombo;
-  document.getElementById('r-best').textContent   = newBest;
-
-  // 재료 정산 (블록 5개당 1개)
+  // 재료 정산
+  const matEvery = (char && char.matDropEvery) ? char.matDropEvery : 5;
   const gainedMats = {};
   for (const [color, cnt] of Object.entries(sDestroyed)) {
-    const g = Math.floor(cnt / 5);
+    const g = Math.floor(cnt / matEvery);
     if (g > 0) gainedMats[color] = g;
   }
   addMats(gainedMats);
 
+  // 런 진행 통계 업데이트
+  const prog = getRunProg();
+  if (sMaxCombo > prog.maxComboEver) prog.maxComboEver = sMaxCombo;
+  prog.lifetimeBlocks += sBlocks;
+  saveRunProg(prog);
+
+  // UI 업데이트
+  const nodeLabel = nodeConfig ? `[${nodeConfig.label}] ${ACT_LABELS[runState.act] || ''}` : '—';
+  document.getElementById('r-node').textContent     = nodeLabel;
+  document.getElementById('r-time').textContent     = survived;
+  document.getElementById('r-blk').textContent      = sBlocks;
+  document.getElementById('r-combo').textContent    = sMaxCombo;
+  document.getElementById('r-artifacts').textContent = runState.artifacts.length;
+  document.getElementById('r-best').textContent     = newBest;
+  document.getElementById('r-title').textContent    = fromNodeClear ? '🏆 런 클리어!' : '세션 종료!';
+
   const matParts = [];
-  for (const [color, cnt] of Object.entries(gainedMats)) {
+  for (const [color, cnt] of Object.entries(gainedMats))
     if (cnt > 0) matParts.push(`${COLOR_ICON[color]}+${cnt}`);
-  }
   const matsRow = document.getElementById('r-mats-row');
   if (matParts.length > 0) {
     document.getElementById('r-mats').textContent = matParts.join('  ');
@@ -1593,18 +2031,76 @@ function showResult() {
     matsRow.style.display = 'none';
   }
 
-  // Animate gold
+  // 골드 애니메이션
   let d = 0;
   const step = Math.max(1, Math.ceil(earned / 40));
   const gel  = document.getElementById('r-gold');
   const anim = setInterval(() => {
     d = Math.min(d + step, earned);
     gel.textContent = d;
-    if (d >= earned) { pendingTimers.delete(anim); clearInterval(anim); }
+    if (d >= earned) { clearInterval(anim); }
   }, 40);
-  pendingTimers.add(anim);
+
+  // 도전 과제 체크
+  const newlyDone = checkAchievements();
+  const achRow = document.getElementById('r-ach-row');
+  if (newlyDone.length > 0) {
+    document.getElementById('r-ach-list').textContent = newlyDone.map(a => `${a.icon} ${a.name}`).join('  ');
+    achRow.style.display = 'flex';
+  } else {
+    achRow.style.display = 'none';
+  }
 
   showScreen('rs');
+}
+
+// ── 도전 과제 ─────────────────────────────────────────────
+function checkAchievements() {
+  const prog = getRunProg();
+  const done = getAchievements();
+  const newlyDone = [];
+  for (const def of ACHIEVEMENT_DEFS) {
+    if (done[def.id]) continue;
+    try {
+      if (def.check(prog)) {
+        done[def.id] = true;
+        newlyDone.push(def);
+        // 보상 지급
+        if (def.rewardGold > 0) saveGold(getGold() + def.rewardGold);
+        if (def.rewardRare  > 0) { const m = getMats(); m.rare = (m.rare||0) + def.rewardRare; saveMats(m); }
+      }
+    } catch(e) {}
+  }
+  if (newlyDone.length) saveAchievements(done);
+  return newlyDone;
+}
+
+function renderAchievements() {
+  const done = getAchievements();
+  const prog = getRunProg();
+  const container = document.getElementById('sh-achieve');
+  const completedCount = Object.values(done).filter(Boolean).length;
+  container.innerHTML = `
+    <div style="text-align:center;font-size:12px;color:#606080;padding:4px 0 8px">
+      달성 ${completedCount} / ${ACHIEVEMENT_DEFS.length}
+    </div>
+    ${ACHIEVEMENT_DEFS.map(def => {
+      const isDone = !!done[def.id];
+      const rewardStr = def.rewardGold > 0 ? `💰${def.rewardGold}G` : '';
+      const rareStr   = def.rewardRare  > 0 ? `⭐${def.rewardRare}` : '';
+      return `
+        <div class="ach-item ${isDone ? 'done' : ''}">
+          <div class="ach-icon">${def.icon}</div>
+          <div class="ach-info">
+            <div class="ach-name">${def.name}</div>
+            <div class="ach-desc">${def.desc}</div>
+            ${rewardStr || rareStr ? `<div class="ach-reward">${[rewardStr,rareStr].filter(Boolean).join(' ')}</div>` : ''}
+          </div>
+          <div class="ach-check">${isDone ? '✅' : '⬜'}</div>
+        </div>
+      `;
+    }).join('')}
+  `;
 }
 
 // ═══════════════════════════════════════
@@ -1641,10 +2137,13 @@ function doUpgradeStat(id) {
 }
 
 function shopTab(tab) {
-  document.getElementById('sh-upgrade').style.display = tab === 'upgrade' ? 'flex' : 'none';
+  document.getElementById('sh-upgrade').style.display = tab === 'upgrade' ? 'flex'  : 'none';
+  document.getElementById('sh-achieve').style.display = tab === 'achieve' ? 'flex'  : 'none';
   document.getElementById('sh-deco').style.display    = tab === 'deco'    ? 'block' : 'none';
   document.getElementById('tab-up').classList.toggle('shop-tab-active',  tab === 'upgrade');
+  document.getElementById('tab-ach').classList.toggle('shop-tab-active', tab === 'achieve');
   document.getElementById('tab-dec').classList.toggle('shop-tab-active', tab === 'deco');
+  if (tab === 'achieve') renderAchievements();
 }
 
 function renderUpgradeTab() {
