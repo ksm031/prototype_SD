@@ -837,9 +837,10 @@ const BLOCK_LOCK_COOLDOWN    = 20000;
 // ── 기믹 상태 ──────────────────────────────────────────────
 let stageGimmicks      = new Set();   // 현재 노드 활성 기믹 IDs
 let gimmickSpawnTimers = {};           // {type → ms until next spawn}
-let drainStormTimer    = 0;
-let drainStormActive   = false;
-let drainStormRemain   = 0;
+let drainStormTimer      = 0;
+let drainStormActive     = false;
+let drainStormRemain     = 0;
+let drainStormShakeTimer = 0;
 let earthquakeTimer    = 0;
 let earthquakePending  = false;   // 체인/낙하 중 지연된 지진
 let rotUpdateTimer     = 0;
@@ -2633,12 +2634,15 @@ function drawGrid() {
     ctx.restore();
   }
 
-  // 드레인 폭풍 활성 시 붉은 주변부 vignette
+  // 드레인 폭풍 활성 시 FPS 저체력 스타일 빨간 엣지 vignette
   if (drainStormActive) {
     ctx.save();
-    const grd = ctx.createRadialGradient(AW/2, AH/2, AH*0.2, AW/2, AH/2, AH*0.7);
-    grd.addColorStop(0, 'rgba(255,80,0,0)');
-    grd.addColorStop(1, `rgba(255,80,0,${0.3 + 0.15 * Math.sin(now / 100)})`);
+    const pulse = 0.5 + 0.5 * Math.sin(now / 350);  // ~2.9Hz 펄스
+    const edgeAlpha = 0.35 + 0.35 * pulse;           // 0.35 ~ 0.70
+    const grd = ctx.createRadialGradient(AW/2, AH/2, AH*0.28, AW/2, AH/2, AH*0.78);
+    grd.addColorStop(0,   'rgba(220,0,0,0)');
+    grd.addColorStop(0.55, `rgba(220,0,0,${edgeAlpha * 0.25})`);
+    grd.addColorStop(1,   `rgba(220,0,0,${edgeAlpha})`);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, AW, AH);
     ctx.restore();
@@ -2884,10 +2888,13 @@ function loop(ts) {
       if (drainStormActive) {
         drainStormRemain -= raw;
         if (drainStormRemain <= 0) { drainStormActive = false; drainStormTimer = 0; }
+        drainStormShakeTimer -= raw;
+        if (drainStormShakeTimer <= 0) { shake(3, 5); drainStormShakeTimer = 1200; }
       } else {
         drainStormTimer += raw;
         if (drainStormTimer >= DRAIN_STORM_COOLDOWN) {
           drainStormActive = true; drainStormRemain = DRAIN_STORM_ACTIVE_MS;
+          drainStormShakeTimer = 600;
           bigPopup('🌪️ DRAIN STORM!', '#ff8844');
         }
       }
@@ -3118,7 +3125,7 @@ function startNode(act, nodeIdx) {
   for (const g of ['ice','split','mirror','petrified','shield','rot','revive']) {
     if (stageGimmicks.has(g)) gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][_tier];
   }
-  drainStormTimer = 0; drainStormActive = false; drainStormRemain = 0;
+  drainStormTimer = 0; drainStormActive = false; drainStormRemain = 0; drainStormShakeTimer = 0;
   earthquakeTimer = 0; earthquakePending = false; rotUpdateTimer = 0; reviveQueue = [];
   blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
   darkZoneRect = stageGimmicks.has('darkzone') ? pickRect() : null;
