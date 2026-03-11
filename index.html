@@ -2453,16 +2453,35 @@ function drawGrid() {
 
   // ── Pass 5: 스테이지 기믹 오버레이 ──
 
-  // 안개: 블록을 흐릿하게 표시 (화면 전체 반투명 레이어)
+  // 안개: 이동하는 구름 덩어리가 그리드 일부를 가림
   if (stageGimmicks.has('fog')) {
     ctx.save();
-    ctx.fillStyle = `rgba(20,20,50,${0.35 + 0.1 * Math.sin(now / 2000)})`;
-    ctx.fillRect(GX - 2, GY - 2, COLS * CELL + 4, ROWS * CELL + 4);
-    // 안개 느낌 노이즈 세줄
-    ctx.fillStyle = 'rgba(180,190,255,0.06)';
-    for (let i = 0; i < 3; i++) {
-      const fy = GY + (((now / 800 + i * 2.3) % ROWS)) * CELL;
-      ctx.fillRect(GX, fy, COLS * CELL, 8);
+    ctx.beginPath();
+    ctx.rect(GX, GY, COLS * CELL, ROWS * CELL);
+    ctx.clip();
+
+    const GW = COLS * CELL, GH = ROWS * CELL;
+    // 구름 덩어리 5개: 속도/위치/크기/투명도가 각각 다름
+    const clouds = [
+      { ox: 0.00, oy: 0.12, r: GW * 0.44, spd: 0.000035, alpha: 0.88 },
+      { ox: 0.40, oy: 0.52, r: GW * 0.50, spd: 0.000022, alpha: 0.82 },
+      { ox: 0.70, oy: 0.78, r: GW * 0.38, spd: 0.000048, alpha: 0.80 },
+      { ox: 0.20, oy: 0.35, r: GW * 0.35, spd: 0.000028, alpha: 0.76 },
+      { ox: 0.55, oy: 0.02, r: GW * 0.52, spd: 0.000018, alpha: 0.84 },
+    ];
+    for (const cl of clouds) {
+      // 가로로 천천히 흘러가며 루프
+      const loopW = GW + cl.r * 2;
+      const cx = GX + ((cl.ox * GW + now * cl.spd * GW) % loopW) - cl.r * 0.5;
+      const cy = GY + cl.oy * GH;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cl.r);
+      grad.addColorStop(0,   `rgba(215,225,255,${cl.alpha})`);
+      grad.addColorStop(0.45,`rgba(200,210,250,${cl.alpha * 0.5})`);
+      grad.addColorStop(1,   'rgba(190,205,245,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cl.r, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   }
