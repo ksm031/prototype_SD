@@ -859,6 +859,7 @@ let timePressureInterval   = 30000;
 let timePressureIntervalTimer = 0;
 let targetChainId = -1;  // 탭 시 강조할 체인 ID
 let pendingTimers = new Set();
+let chainIv = null;      // runChain setInterval ID (stopGame에서 정리)
 
 // ── 런/노드 상태 ─────────────────────────────────────────
 let runState = { act: 0, node: 0, artifacts: [] };
@@ -1499,10 +1500,11 @@ function runChain(chainBlocks, sr, sc) {
   let combo = 0;
   char.state = 'eating';
 
+  if (chainIv !== null) { clearInterval(chainIv); chainIv = null; }
   const iv = setInterval(() => {
-    if (gstate !== 'playing') { clearInterval(iv); return; }
+    if (gstate !== 'playing') { clearInterval(iv); chainIv = null; return; }
     if (!ordered.length) {
-      clearInterval(iv);
+      clearInterval(iv); chainIv = null;
       // Phase 3: 체인 주변 인접 블록 한꺼번에 처리
       for (const { r, c } of waveMap.values()) {
         if (!grid[r][c]) continue;
@@ -1552,6 +1554,7 @@ function runChain(chainBlocks, sr, sc) {
       popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, combo + '!', '#f0c040');
     }
   }, char.chainDelay);
+  chainIv = iv;
 }
 
 // ═══════════════════════════════════════
@@ -2347,12 +2350,14 @@ function drawGrid() {
       // 아래 브릿지
       if (sameChain(r, c, r+1, c) && ar && atRest(r+1, c)) {
         const y2 = blkY(r+1, c);
-        ctx.fillRect(x + PAD, y + CELL - PAD, CELL - PAD * 2, y2 + PAD - (y + CELL - PAD));
+        const bh = y2 + PAD - (y + CELL - PAD);
+        if (bh > 0 && bh <= CELL * 2) ctx.fillRect(x + PAD, y + CELL - PAD, CELL - PAD * 2, bh);
       }
       // 아래-오른쪽 코너 채움 (십자 교차점)
       if (sameChain(r, c, r, c+1) && sameChain(r, c, r+1, c) && ar && atRest(r, c+1) && atRest(r+1, c)) {
         const y2 = blkY(r+1, c);
-        ctx.fillRect(x + CELL - PAD, y + CELL - PAD, PAD * 2, y2 + PAD - (y + CELL - PAD));
+        const bh = y2 + PAD - (y + CELL - PAD);
+        if (bh > 0 && bh <= CELL * 2) ctx.fillRect(x + CELL - PAD, y + CELL - PAD, PAD * 2, bh);
       }
     }
   }
@@ -3081,6 +3086,7 @@ function stopGame() {
   cancelAnimationFrame(rafID);
   for (const id of pendingTimers) clearTimeout(id);
   pendingTimers.clear();
+  if (chainIv !== null) { clearInterval(chainIv); chainIv = null; }
   locked = false;
   gstate = 'idle';
   document.getElementById('pause-btn').textContent = '⏸';
