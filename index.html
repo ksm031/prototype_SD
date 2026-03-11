@@ -687,7 +687,7 @@ const ITEM_DROP_TIERS = [
 const STATS = {
   recovery: { name:'회복력', icon:'💚', desc:'블록 파괴 시 HP 회복량',
     tiers:[
-      { value:3.0 },
+      { value:4.5 },
       { value:4.5,  gold:600,  mat:{ yellow:30 } },
       { value:6.0,  gold:1500, mat:{ yellow:75 } },
       { value:8.0,  gold:3600, mat:{ yellow:150, rare:9 } },
@@ -727,7 +727,7 @@ const STATS = {
   },
   maxhp: { name:'최대 체력', icon:'❤️', desc:'최대 HP (회복량도 비례 증가)',
     tiers:[
-      { value:100 },
+      { value:120 },
       { value:130, gold:1200, mat:{ green:60 } },
       { value:170, gold:3000, mat:{ green:150, rare:15 } },
       { value:220, gold:7500, mat:{ green:270, rare:45 } },
@@ -1350,6 +1350,7 @@ function startEat(r, c) {
     removeBlock(r, c);
     sBlocks++;
     sGold += Math.round(char.goldPerBlock * char.goldMult);
+    healFromBlock(1); // 솔로 블록도 소량 회복
     popup(char.x, char.y - 44, '…', '#888899');
     char.state = 'returning';
     safeTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
@@ -1982,7 +1983,7 @@ function drawHUD() {
   ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
   // 하단 행: 드레인 속도 | 생존 시간 / 노드 진행 | 골드
-  const drainRate = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
+  const drainRate = (10.0 + gameElapsed / 1000 * 0.20) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
 
   // 노드/HYPER 레이블 (HP 바 위 가운데)
   if (isHyper) {
@@ -2715,7 +2716,7 @@ function loop(ts) {
     if (char.lowHpShield && char.hp / char.maxHp < 0.30) drainMultFinal *= 0.7;
     // 소모품: 시간 정지 중 드레인 0
     if (consumeEffects.timeStop > 0) drainMultFinal = 0;
-    const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * drainMultFinal;
+    const drainRate  = (10.0 + gameElapsed / 1000 * 0.20) * drainMultFinal;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
 
