@@ -307,54 +307,36 @@ const COLOR_SHAPE = { red: '♦', blue: '●', yellow: '★', green: '▲', purp
 let colorCount = 3;
 let COLORS = ALL_COLORS.slice(0, colorCount);
 
-// 시간 기반 단계: 0-60s=3색, 60-120s=4색, 120-180s=5색, 180s+=HYPER
-const PHASE_DEFS = [
-  { minSec: 0,   colors: 3, label: 'PHASE 1', color: '#7ec850', bg: 'res/bg/phase1.png', steelInterval: 20000 },
-  { minSec: 60,  colors: 4, label: 'PHASE 2', color: '#f0c040', bg: 'res/bg/phase2.png', steelInterval: 13000 },
-  { minSec: 120, colors: 5, label: 'PHASE 3', color: '#ff8844', bg: 'res/bg/phase3.png', steelInterval: 8000  },
-  { minSec: 180, colors: 5, label: 'HYPER',   color: '#ff3366', bg: 'res/bg/phase4.png', steelInterval: 4000  },
-];
-
-// 배경 이미지 프리로드
-const BG_IMGS = PHASE_DEFS.map(p => { const img = new Image(); img.src = p.bg; return img; });
-let currentPhase = 0;
-let hyperPulseTimer  = 0;   // ms since last pulse
+// 배경 이미지 (act별 + HYPER)
+const BG_IMGS = ['res/bg/phase1.png','res/bg/phase2.png','res/bg/phase3.png','res/bg/phase4.png'].map(src => {
+  const img = new Image(); img.src = src; return img;
+});
+let isHyper = false;
+let hyperPulseTimer  = 0;
 let hyperPulseActive = false;
-let hyperPulseRemain = 0;   // ms left in active pulse
+let hyperPulseRemain = 0;
 const PULSE_INTERVAL = 15000;
 const PULSE_DURATION = 3000;
 
-function getPhase(secElapsed) {
-  const defs = activePhaseDefs || PHASE_DEFS;
-  for (let i = defs.length - 1; i >= 0; i--)
-    if (secElapsed >= defs[i].minSec) return i;
-  return 0;
-}
-
-function updatePhase() {
-  const sec = gameElapsed / 1000;
-  const p   = getPhase(sec);
-  if (p !== currentPhase) {
-    currentPhase = p;
-    const def = (activePhaseDefs || PHASE_DEFS)[p];
-    colorCount = def.colors;
-    COLORS = ALL_COLORS.slice(0, colorCount);
-    bigPopup(def.label + '!', def.color);
-    shake(6, 8);
-    // 페이즈 전환 시 아티팩트 HP 회복
-    if (char.phaseHealAmt > 0) {
-      char.hp = Math.min(char.maxHp, char.hp + char.phaseHealAmt);
-      popup(AW / 2, AH / 2 - 30, '+' + char.phaseHealAmt + ' HP', '#7ec850');
+function updateHyper() {
+  const hyperSec = (nodeConfig && nodeConfig.hyperStart) ? nodeConfig.hyperStart + (char.hyperStartBonus || 0) : 999;
+  const wasHyper = isHyper;
+  isHyper = gameElapsed / 1000 >= hyperSec;
+  if (isHyper && !wasHyper) {
+    bigPopup('⚡ HYPER!', '#ff3366');
+    shake(12, 20);
+    if (char.hyperHealAmt > 0) {
+      char.hp = Math.min(char.maxHp, char.hp + char.hyperHealAmt);
+      popup(AW / 2, AH / 2 - 30, '+' + Math.round(char.hyperHealAmt) + ' HP', '#7ec850');
     }
-    // HYPER 진입 시 hyperHeal 아티팩트
-    if (p === 3 && char.hyperHeal) {
+    if (char.hyperHeal) {
       char.hp = char.maxHp;
       bigPopup('♾️ FULL HEAL!', '#3498db');
     }
-    // 런 통계 업데이트
-    if (p === 3) {
-      const prog = getRunProg(); prog.hyperReached++; saveRunProg(prog);
-    }
+    const prog = getRunProg(); prog.hyperReached++; saveRunProg(prog);
+  }
+  if (!isHyper) {
+    hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
   }
 }
 
@@ -548,38 +530,40 @@ const COLOR_ICON    = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢'
 
 // ── 노드 정의 (FTL/슬더스 방식) ─────────────────────────
 const ACT_LABELS = ['ACT 1 — 초원 🌿', 'ACT 2 — 화산 🌋', 'ACT 3 — 혼돈 🌀'];
+// colors: 노드 고정 색상 수 | steelMs: 강철 스폰 주기(ms) | tier: 기믹 난이도 0-3
+// hyperStart: 몇 초 후 HYPER 진입 (노드 clearSec보다 크면 사실상 없음)
 const NODE_DEFS = [
   // ACT 1
   [
-    { label:'1-1',    type:'normal', clearSec:60,  drainMult:1.0, steelMult:1.0, hyperStart:180, pool:'common'  },
-    { label:'1-2',    type:'normal', clearSec:75,  drainMult:1.0, steelMult:1.1, hyperStart:180, pool:'common',
+    { label:'1-1',    type:'normal', clearSec:60,  drainMult:1.0, colors:3, steelMs:22000, tier:0, hyperStart:999, pool:'common'  },
+    { label:'1-2',    type:'normal', clearSec:75,  drainMult:1.0, colors:3, steelMs:20000, tier:0, hyperStart:999, pool:'common',
       gimmicks:['mirror'] },
-    { label:'1-3',    type:'normal', clearSec:90,  drainMult:1.0, steelMult:1.2, hyperStart:180, pool:'common',
+    { label:'1-3',    type:'normal', clearSec:90,  drainMult:1.1, colors:4, steelMs:16000, tier:1, hyperStart:999, pool:'common',
       gimmicks:['ice', 'drain_storm'] },
-    { label:'1-BOSS', type:'boss',   clearSec:120, drainMult:1.2, steelMult:2.0, hyperStart:180, pool:'rare',
+    { label:'1-BOSS', type:'boss',   clearSec:120, drainMult:1.3, colors:4, steelMs:12000, tier:1, hyperStart:90, pool:'rare',
       gimmicks:['petrified'],
       timePressure:{ combo:10, interval:25000 } },
   ],
   // ACT 2
   [
-    { label:'2-1',    type:'normal', clearSec:90,  drainMult:1.2, steelMult:1.3, hyperStart:180, pool:'common',
+    { label:'2-1',    type:'normal', clearSec:90,  drainMult:1.3, colors:4, steelMs:12000, tier:1, hyperStart:999, pool:'common',
       gimmicks:['split', 'fog'] },
-    { label:'2-2',    type:'normal', clearSec:100, drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'common',
+    { label:'2-2',    type:'normal', clearSec:100, drainMult:1.4, colors:4, steelMs:10000, tier:2, hyperStart:999, pool:'common',
       gimmicks:['shield', 'darkzone'] },
-    { label:'2-3',    type:'elite',  clearSec:90,  drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'rare', fastPulse:true,
+    { label:'2-3',    type:'elite',  clearSec:90,  drainMult:1.4, colors:5, steelMs:9000,  tier:2, hyperStart:999, pool:'rare', fastPulse:true,
       gimmicks:['rot', 'mirror', 'colorblind'] },
-    { label:'2-BOSS', type:'boss',   clearSec:150, drainMult:1.5, steelMult:2.0, hyperStart:100, pool:'rare',
+    { label:'2-BOSS', type:'boss',   clearSec:150, drainMult:1.6, colors:5, steelMs:8000,  tier:2, hyperStart:100, pool:'rare',
       gimmicks:['reverse_chain', 'earthquake', 'petrified'] },
   ],
   // ACT 3
   [
-    { label:'3-1',    type:'normal', clearSec:100, drainMult:1.5, steelMult:1.5, hyperStart:180, pool:'common',
+    { label:'3-1',    type:'normal', clearSec:100, drainMult:1.6, colors:5, steelMs:8000,  tier:2, hyperStart:999, pool:'common',
       gimmicks:['block_lock', 'revive', 'split'] },
-    { label:'3-2',    type:'elite',  clearSec:110, drainMult:1.6, steelMult:1.6, hyperStart:180, pool:'rare',
+    { label:'3-2',    type:'elite',  clearSec:110, drainMult:1.7, colors:5, steelMs:6000,  tier:3, hyperStart:999, pool:'rare',
       gimmicks:['colorblind', 'ice', 'shield', 'rot'] },
-    { label:'3-3',    type:'elite',  clearSec:120, drainMult:1.7, steelMult:1.7, hyperStart:180, pool:'rare',
+    { label:'3-3',    type:'elite',  clearSec:120, drainMult:1.8, colors:5, steelMs:5000,  tier:3, hyperStart:999, pool:'rare',
       gimmicks:['drain_storm', 'darkzone', 'mirror', 'earthquake'] },
-    { label:'FINAL',  type:'final',  clearSec:180, drainMult:2.0, steelMult:2.5, hyperStart:90,  pool:'legendary',
+    { label:'FINAL',  type:'final',  clearSec:180, drainMult:2.0, colors:5, steelMs:4000,  tier:3, hyperStart:90,  pool:'legendary',
       gimmicks:['reverse_chain', 'fog', 'petrified', 'revive', 'drain_storm', 'earthquake'],
       timePressure:{ combo:15, interval:22000 } },
   ],
@@ -608,13 +592,13 @@ const ARTIFACT_POOL = [
   { id:'steel_breaker', get name(){ return t('art_steel_breaker_name'); }, icon:'⚔️', rarity:'rare',      get desc(){ return t('art_steel_breaker_desc'); }, apply: c => { c.steelBreaker = true; } },
   { id:'blood_pact',    get name(){ return t('art_blood_pact_name'); },    icon:'🩸', rarity:'rare',      get desc(){ return t('art_blood_pact_desc'); },    apply: c => { c.drainMult *= 1.3; c.hpPerBlock *= 2; } },
   { id:'legend_light',  get name(){ return t('art_legend_light_name'); },  icon:'🌟', rarity:'rare',      get desc(){ return t('art_legend_light_desc'); },  apply: c => { c.legendSpawnRate *= 3; c.legendMatBonus += 2; } },
-  { id:'time_crystal',  get name(){ return t('art_time_crystal_name'); },  icon:'⏱️', rarity:'rare',      get desc(){ return t('art_time_crystal_desc'); },  apply: c => { c.phaseTimeBonus += 20; c.phaseHealAmt += 30; } },
+  { id:'time_crystal',  get name(){ return t('art_time_crystal_name'); },  icon:'⏱️', rarity:'rare',      get desc(){ return t('art_time_crystal_desc'); },  apply: c => { c.hyperStartBonus = (c.hyperStartBonus||0) + 20; c.hyperHealAmt = (c.hyperHealAmt||0) + 30; } },
   { id:'storm_catalyst',get name(){ return t('art_storm_catalyst_name'); },icon:'🎇', rarity:'rare',      get desc(){ return t('art_storm_catalyst_desc'); },apply: c => { c.bombRadius += 2; } },
   { id:'chain_amp',     get name(){ return t('art_chain_amp_name'); },     icon:'💫', rarity:'rare',      get desc(){ return t('art_chain_amp_desc'); },     apply: c => { c.chainHealBonus += 5 * c.maxHp / 100; } },
   { id:'chaos_force',   get name(){ return t('art_chaos_force_name'); },   icon:'🌪️', rarity:'rare',      get desc(){ return t('art_chaos_force_desc'); },   apply: c => { c.hyperHeal = true; } },
   { id:'emperor_seal',  get name(){ return t('art_emperor_seal_name'); },  icon:'👑', rarity:'rare',      get desc(){ return t('art_emperor_seal_desc'); },  apply: c => { c.goldMult *= 1.5; } },
   { id:'magic_orb',     get name(){ return t('art_magic_orb_name'); },     icon:'🔮', rarity:'rare',      get desc(){ return t('art_magic_orb_desc'); },     apply: c => { c.impactRange += 2; c.chainDelay = Math.max(10, c.chainDelay - 15); } },
-  { id:'butterfly',     get name(){ return t('art_butterfly_name'); },     icon:'🦋', rarity:'rare',      get desc(){ return t('art_butterfly_desc'); },     apply: c => { c.phaseHealAmt += 35; } },
+  { id:'butterfly',     get name(){ return t('art_butterfly_name'); },     icon:'🦋', rarity:'rare',      get desc(){ return t('art_butterfly_desc'); },     apply: c => { c.hyperHealAmt = (c.hyperHealAmt||0) + 35; } },
   // ─ 전설 (4종) ─
   { id:'rainbow_core',  get name(){ return t('art_rainbow_core_name'); },  icon:'🌈', rarity:'legendary', get desc(){ return t('art_rainbow_core_desc'); },
     apply: c => { c.impactRange += 3; c.chainDelay = Math.max(10, c.chainDelay - 20); c.hpPerBlock += 3 * c.maxHp / 100; } },
@@ -633,7 +617,7 @@ const SYNERGY_DEFS = [
   { a:'supernova',    b:'storm_catalyst',icons:'💣🎇', desc:'폭탄 반경 +2 추가',                apply: c => { c.bombRadius += 2; } },
   { a:'rainbow_core', b:'eternal_heart', icons:'🌈♾️', desc:'블록 회복 +3, 드레인 ×0.9',        apply: c => { c.hpPerBlock += 3 * c.maxHp / 100; c.drainMult *= 0.9; } },
   { a:'first_aid',    b:'blood_pact',    icons:'🩹🩸', desc:'블록 회복 ×1.5',                  apply: c => { c.hpPerBlock *= 1.5; } },
-  { a:'magic_orb',    b:'butterfly',     icons:'🔮🦋', desc:'페이즈 전환 회복 +15',             apply: c => { c.phaseHealAmt += 15; } },
+  { a:'magic_orb',    b:'butterfly',     icons:'🔮🦋', desc:'HYPER 진입 시 HP +15 추가',         apply: c => { c.hyperHealAmt = (c.hyperHealAmt||0) + 15; } },
   { a:'life_sprout',  b:'defense_orb',   icons:'🌿🛡️', desc:'최대 HP +25',                     apply: c => { c.maxHp += 25; c.hp = Math.min(c.maxHp, c.hp + 25); } },
   { a:'glass_cannon', b:'blood_pact',    icons:'🔫🩸', desc:'위험 구간 회복 추가 +100%',        apply: c => { c.lowHpHealBonus += 1.0; } },
 ];
@@ -816,7 +800,7 @@ let slowFactor = 1.0, lastTS = 0, rafID = null;
 let locked = false;  // input lock during chain
 let steelSpawnTimer = 0; // ms until next steel block spawn
 let timebombSpawnTimer = 0; // ms until next timebomb block spawn
-const TIMEBOMB_INTERVALS = [45000, 35000, 25000, 15000]; // per phase
+// timebomb interval은 nodeConfig.steelMs * 1.8로 노드별 계산
 const TIMEBOMB_FUSE = 8000; // ms before explosion
 
 // ── 기믹 상수 ──────────────────────────────────────────────
@@ -844,6 +828,7 @@ let drainStormTimer    = 0;
 let drainStormActive   = false;
 let drainStormRemain   = 0;
 let earthquakeTimer    = 0;
+let earthquakePending  = false;   // 체인/낙하 중 지연된 지진
 let rotUpdateTimer     = 0;
 let reviveQueue        = [];           // [{r,c,color,timer}]
 let blockLockActive    = false;
@@ -864,9 +849,7 @@ let pendingTimers = new Set();
 // ── 런/노드 상태 ─────────────────────────────────────────
 let runState = { act: 0, node: 0, artifacts: [] };
 let nodeConfig = null;        // 현재 노드 설정 (NODE_DEFS[act][node])
-let activePhaseDefs = null;   // 이번 노드에 적용되는 페이즈 정의
 let nodeClearTriggered = false;
-let prevPhase = -1;           // 페이즈 전환 감지용
 
 // ── 로그라이크 확장 상태 ─────────────────────────────────
 let runConsumables   = [];           // [{id,icon,name,use}] 최대 3개
@@ -1170,8 +1153,8 @@ function initChar() {
     legendSpawnRate:    0.002,
     legendMatBonus:     0,
     matDropEvery:       5,
-    phaseHealAmt:       0,
-    phaseTimeBonus:     0,
+    hyperHealAmt:       0,
+    hyperStartBonus:    0,
     chainHealBonus:     0,
     bombRadius:         BOMB_RADIUS,
     bombThreshold:      22,
@@ -1191,12 +1174,6 @@ function initChar() {
   applyCurseEffects();
   // 노드 드레인 배율 (아티팩트 vitality 위에 추가로 적용)
   if (nodeConfig) char.drainMult *= nodeConfig.drainMult;
-  // phaseTimeBonus → activePhaseDefs에 반영
-  if (char.phaseTimeBonus > 0 && activePhaseDefs) {
-    for (let i = 1; i < activePhaseDefs.length; i++) {
-      activePhaseDefs[i] = { ...activePhaseDefs[i], minSec: PHASE_DEFS[i].minSec + char.phaseTimeBonus };
-    }
-  }
 }
 
 function applyArtifacts() {
@@ -1676,6 +1653,12 @@ function spreadRot() {
 }
 
 function triggerEarthquake() {
+  // 체인 진행 중이거나 블록 낙하 중이면 지연
+  if (locked || char.state !== 'idle' || blocksFalling()) {
+    earthquakePending = true;
+    return;
+  }
+  earthquakePending = false;
   shake(14, 28);
   bigPopup('🌋 QUAKE!', '#ff8844');
   haptic([30, 10, 50, 10, 30]);
@@ -1942,8 +1925,8 @@ function render(dt) {
     shakeFr--;
   }
 
-  // HYPER 웨이브 왜곡 (화면 좌우 + 상하 흔들림)
-  if (currentPhase === 3) {
+  // HYPER 웨이브 왜곡
+  if (isHyper) {
     ox += Math.sin(now / 350) * (hyperPulseActive ? 5 : 1.5);
     oy += Math.cos(now / 500) * (hyperPulseActive ? 3 : 0.6);
   }
@@ -1951,17 +1934,18 @@ function render(dt) {
   ctx.save();
   ctx.translate(ox, oy);
 
-  // Background — 페이즈별 배경 이미지
+  // Background — Act별 배경, HYPER 시 HYPER 배경
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(-20, -20, AW + 40, AH + 40);
-  const bgImg = BG_IMGS[currentPhase];
+  const bgIdx = isHyper ? 3 : Math.min(runState.act, 2);
+  const bgImg = BG_IMGS[bgIdx];
   if (bgImg && bgImg.complete && bgImg.naturalWidth) {
     ctx.globalAlpha = 0.45;
     ctx.drawImage(bgImg, 0, 0, AW, AH);
     ctx.globalAlpha = 1.0;
   }
   // HYPER 시 붉게 숨쉬는 오버레이
-  if (currentPhase === 3) {
+  if (isHyper) {
     const b = hyperPulseActive
       ? 20 + (Math.abs(Math.sin(now / 70)) * 35 | 0)
       : 10 + (Math.abs(Math.sin(now / 1400)) * 12 | 0);
@@ -1977,7 +1961,7 @@ function render(dt) {
   drawHUD();
 
   // HYPER 오버레이 (전체 화면 빨간 플래시)
-  if (currentPhase === 3) {
+  if (isHyper) {
     const alpha = hyperPulseActive
       ? Math.abs(Math.sin(now / 55)) * 0.28   // 빠른 스트로브
       : Math.abs(Math.sin(now / 1800)) * 0.07; // 잔잔한 붉은 기운
@@ -2028,15 +2012,17 @@ function drawHUD() {
   // 하단 행: 드레인 속도 | 생존 시간 / 노드 진행 | 골드
   const drainRate = (16.0 + gameElapsed / 1000 * 0.35) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
 
-  // 페이즈 레이블 (HP 바 위 가운데)
-  const pdef = (activePhaseDefs || PHASE_DEFS)[currentPhase];
-  ctx.save();
-  ctx.font = 'bold 9px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = pdef.color;
-  ctx.fillText(pdef.label, AW / 2, BAR_Y - 4);
-  ctx.restore();
+  // 노드/HYPER 레이블 (HP 바 위 가운데)
+  if (isHyper) {
+    ctx.save();
+    ctx.font = 'bold 9px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const hyperFlash = hyperPulseActive ? (Math.floor(Date.now() / 100) % 2 === 0 ? '#ff2255' : '#ff8844') : '#ff3366';
+    ctx.fillStyle = hyperFlash;
+    ctx.fillText('⚡ HYPER', AW / 2, BAR_Y - 4);
+    ctx.restore();
+  }
 
   ctx.textBaseline = 'middle';
   ctx.font = '12px system-ui';
@@ -2680,10 +2666,10 @@ function loop(ts) {
   // HP 드레인 (실시간, slowFactor 무관 elapsed 사용)
   if (gstate === 'playing') {
     gameElapsed += raw;
-    updatePhase();
+    updateHyper();
 
     // HYPER 펄스 타이머
-    if (currentPhase === 3) {
+    if (isHyper) {
       if (hyperPulseActive) {
         hyperPulseRemain -= raw;
         if (hyperPulseRemain <= 0) { hyperPulseActive = false; hyperPulseTimer = 0; }
@@ -2696,16 +2682,13 @@ function loop(ts) {
           shake(12, 14);
         }
       }
-    } else {
-      hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
     }
 
     // 강철 블럭 스폰 타이머
     steelSpawnTimer -= raw;
     if (steelSpawnTimer <= 0) {
       spawnSteel();
-      const aph = activePhaseDefs || PHASE_DEFS;
-      const baseInterval = aph[Math.min(currentPhase, aph.length - 1)].steelInterval;
+      const baseInterval = nodeConfig.steelMs || 20000;
       steelSpawnTimer = baseInterval * (activeCurses.has('steel_storm') ? 0.5 : 1);
     }
 
@@ -2713,7 +2696,7 @@ function loop(ts) {
     timebombSpawnTimer -= raw;
     if (timebombSpawnTimer <= 0) {
       spawnTimebomb();
-      timebombSpawnTimer = TIMEBOMB_INTERVALS[Math.min(currentPhase, TIMEBOMB_INTERVALS.length - 1)];
+      timebombSpawnTimer = (nodeConfig.steelMs || 20000) * 1.8;
     }
 
     // 시한폭탄 카운트다운
@@ -2732,7 +2715,7 @@ function loop(ts) {
     // 저주: 혼돈의 저주 — 25초마다 지진
     if (activeCurses.has('chaos_curse')) {
       chaosCurseTimer -= raw;
-      if (chaosCurseTimer <= 0) { chaosCurseTimer = 25000; triggerEarthquake(); }
+      if (chaosCurseTimer <= 0) { chaosCurseTimer = 25000; earthquakePending = true; triggerEarthquake(); }
     }
 
     const pulseMult  = (hyperPulseActive ? 2.0 : 1.0) * (drainStormActive ? 2.0 : 1.0);
@@ -2756,7 +2739,7 @@ function loop(ts) {
       gimmickSpawnTimers[g] -= raw;
       if (gimmickSpawnTimers[g] <= 0) {
         spawnGimmickBlock(g);
-        gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][Math.min(currentPhase, 3)];
+        gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][nodeConfig.tier || 0];
       }
     }
 
@@ -2795,6 +2778,10 @@ function loop(ts) {
     if (stageGimmicks.has('earthquake')) {
       earthquakeTimer += raw;
       if (earthquakeTimer >= EARTHQUAKE_INTERVAL) { earthquakeTimer = 0; triggerEarthquake(); }
+    }
+    // 지연된 지진: 플레이어 idle 복귀 시 발동
+    if (earthquakePending && !locked && char.state === 'idle' && !blocksFalling()) {
+      triggerEarthquake();
     }
 
     // ── 블록 잠금 사이클 ──
@@ -2990,23 +2977,15 @@ function startNode(act, nodeIdx) {
   runState.node = nodeIdx;
   nodeConfig = NODE_DEFS[act][nodeIdx];
   nodeClearTriggered = false;
-  prevPhase = -1;
-
-  // activePhaseDefs: HYPER 시작 시간 + 강철 간격 노드 배율 적용
-  activePhaseDefs = PHASE_DEFS.map((p, i) => ({
-    ...p,
-    minSec: i === 3 ? nodeConfig.hyperStart : p.minSec,
-    steelInterval: Math.round(p.steelInterval / (nodeConfig.steelMult || 1.0)),
-  }));
 
   stopGame();
   gstate = 'playing';
   sGold = 0; sBlocks = 0; sMaxCombo = 0; gameElapsed = 0;
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
-  currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
-  hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
-  steelSpawnTimer = activePhaseDefs[0].steelInterval * (activeCurses.has('steel_storm') ? 0.5 : 1);
-  timebombSpawnTimer = TIMEBOMB_INTERVALS[0];
+  colorCount = nodeConfig.colors || 3; COLORS = ALL_COLORS.slice(0, colorCount);
+  isHyper = false; hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
+  steelSpawnTimer = (nodeConfig.steelMs || 20000) * (activeCurses.has('steel_storm') ? 0.5 : 1);
+  timebombSpawnTimer = (nodeConfig.steelMs || 20000) * 1.8;
   slowFactor = 1.0; lastTS = 0; locked = false;
   consumeEffects = { timeStop: 0, chainSurge: 0 };
   chaosCurseTimer = 25000;
@@ -3016,11 +2995,12 @@ function startNode(act, nodeIdx) {
   // ── 기믹 초기화 ──
   stageGimmicks = new Set(nodeConfig.gimmicks || []);
   gimmickSpawnTimers = {};
+  const _tier = nodeConfig.tier || 0;
   for (const g of ['ice','split','mirror','petrified','shield','rot','revive']) {
-    if (stageGimmicks.has(g)) gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][0];
+    if (stageGimmicks.has(g)) gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][_tier];
   }
   drainStormTimer = 0; drainStormActive = false; drainStormRemain = 0;
-  earthquakeTimer = 0; rotUpdateTimer = 0; reviveQueue = [];
+  earthquakeTimer = 0; earthquakePending = false; rotUpdateTimer = 0; reviveQueue = [];
   blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
   darkZoneRect = stageGimmicks.has('darkzone') ? pickRect() : null;
   darkRevealCell = null; darkRevealTimer = 0;
