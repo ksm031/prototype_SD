@@ -146,7 +146,7 @@
   <div id="ms" class="screen active">
     <div class="title">CHOMP CHAIN</div>
     <div class="sub">블록을 탭해 캐릭터를 먹여라!</div>
-    <div style="font-size:10px;color:#404060;margin-top:-10px;letter-spacing:1px">v0.6.0</div>
+    <div style="font-size:10px;color:#404060;margin-top:-10px;letter-spacing:1px">v0.6.1</div>
     <div class="stats-box">
       <div class="stat-row"><span>⏳ 최장 생존</span><b id="m-hs">0초</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
@@ -1980,7 +1980,7 @@ function drawHUD() {
   ctx.font = 'bold 10px system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(Math.ceil(char.hp) + '%', AW / 2, BAR_Y + BAR_H / 2);
+  ctx.fillText(Math.ceil(pct * 100) + '%', AW / 2, BAR_Y + BAR_H / 2);
 
   // 하단 행: 드레인 속도 | 생존 시간 / 노드 진행 | 골드
   const drainRate = (10.0 + gameElapsed / 1000 * 0.20) * char.drainMult * (hyperPulseActive ? 2.0 : 1.0);
