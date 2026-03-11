@@ -1272,7 +1272,7 @@ function spawnSteel() {
   const candidates = [];
   for (let r = 0; r < 3; r++)
     for (let c = 0; c < COLS; c++)
-      if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item && grid[r][c].color !== 'legendary') candidates.push({ r, c });
+      if (isPlainBlock(grid[r][c])) candidates.push({ r, c });
   if (!candidates.length) return;
 
   const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
@@ -1296,8 +1296,7 @@ function spawnTimebomb() {
   const candidates = [];
   for (let r = 1; r < ROWS - 1; r++)
     for (let c = 0; c < COLS; c++)
-      if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item && !grid[r][c].timebomb && grid[r][c].color !== 'legendary')
-        candidates.push({ r, c });
+      if (isPlainBlock(grid[r][c])) candidates.push({ r, c });
   if (!candidates.length) return;
 
   const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
@@ -1333,9 +1332,7 @@ function spawnGimmickBlock(type) {
   for (let r = 1; r < ROWS - 1; r++)
     for (let c = 0; c < COLS; c++) {
       const b = grid[r][c];
-      if (b && !b.steel && !b.item && !b.timebomb && !b.ice && !b.split && !b.mirror &&
-          !b.petrified && !b.shield && !b.rot && !b.revive && b.color !== 'legendary')
-        candidates.push({ r, c });
+      if (isPlainBlock(b)) candidates.push({ r, c });
     }
   if (!candidates.length) return;
   const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
@@ -1390,27 +1387,31 @@ function triggerEarthquake() {
       const b = grid[r][c];
       if (b && !b.steel && !b.item && !b.timebomb) movable.push({ r, c, blk: b });
     }
+  // Fisher-Yates shuffle on positions; blocks animate from original row
   const positions = movable.map(m => ({ r: m.r, c: m.c }));
-  positions.sort(() => Math.random() - 0.5);
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
   for (let i = 0; i < movable.length; i++) {
     const { r, c } = positions[i];
     grid[r][c] = movable[i].blk;
-    grid[r][c].animY = GY + movable[i].r * CELL; // 원래 위치에서 낙하 시작
+    grid[r][c].animY = GY + movable[i].r * CELL;
     grid[r][c].fallV = 0;
   }
   buildChains();
 }
 
-function pickLockRect() {
+function pickRect() {
   const r1 = 1 + Math.floor(Math.random() * (ROWS - 3));
   const c1 = Math.floor(Math.random() * (COLS - 2));
   return { r1, c1, r2: Math.min(ROWS - 1, r1 + 2), c2: Math.min(COLS - 1, c1 + 2) };
 }
 
-function pickDarkZone() {
-  const r1 = 1 + Math.floor(Math.random() * (ROWS - 3));
-  const c1 = Math.floor(Math.random() * (COLS - 2));
-  return { r1, c1, r2: Math.min(ROWS - 1, r1 + 2), c2: Math.min(COLS - 1, c1 + 2) };
+function isPlainBlock(b) {
+  return b && !b.steel && !b.item && !b.timebomb &&
+         !b.ice && !b.split && !b.mirror && !b.petrified &&
+         !b.shield && !b.rot && !b.revive && b.color !== 'legendary';
 }
 
 // ═══════════════════════════════════════
@@ -1761,17 +1762,23 @@ function drawHUD() {
   ctx.textAlign = 'right';
   ctx.fillText(sGold + ' G', AW - BAR_X, 44);
 
-  // 기믹 상태 표시 (HUD 하단 행 위)
+  // 기믹 상태 표시 (HUD 하단 행 위) — Set.has 결과를 로컬 변수로 캐싱
+  const gHasColorblind   = stageGimmicks.has('colorblind');
+  const gHasFog          = stageGimmicks.has('fog');
+  const gHasDarkzone     = stageGimmicks.has('darkzone');
+  const gHasReverse      = stageGimmicks.has('reverse_chain');
+  const gHasEarthquake   = stageGimmicks.has('earthquake');
+  const gHasDrainStorm   = stageGimmicks.has('drain_storm');
   const activeGimmickLabels = [];
-  if (stageGimmicks.has('colorblind'))    activeGimmickLabels.push('🎨');
-  if (stageGimmicks.has('fog'))           activeGimmickLabels.push('🌫️');
-  if (stageGimmicks.has('darkzone'))      activeGimmickLabels.push('🌑');
-  if (stageGimmicks.has('reverse_chain')) activeGimmickLabels.push('🔃');
-  if (stageGimmicks.has('earthquake'))    activeGimmickLabels.push(`🌋${Math.ceil((EARTHQUAKE_INTERVAL - earthquakeTimer) / 1000)}s`);
-  if (drainStormActive)                   activeGimmickLabels.push(`🌪️${Math.ceil(drainStormRemain / 1000)}s`);
-  else if (stageGimmicks.has('drain_storm')) activeGimmickLabels.push(`🌪️`);
-  if (blockLockActive)                    activeGimmickLabels.push(`🔐${Math.ceil((BLOCK_LOCK_DURATION - blockLockCycle) / 1000)}s`);
-  if (timePressureActive)                 activeGimmickLabels.push(`⏰${Math.ceil(timePressureTimer / 1000)}s ${timePressureCombo}/${timePressureTarget}`);
+  if (gHasColorblind)  activeGimmickLabels.push('🎨');
+  if (gHasFog)         activeGimmickLabels.push('🌫️');
+  if (gHasDarkzone)    activeGimmickLabels.push('🌑');
+  if (gHasReverse)     activeGimmickLabels.push('🔃');
+  if (gHasEarthquake)  activeGimmickLabels.push(`🌋${Math.ceil((EARTHQUAKE_INTERVAL - earthquakeTimer) / 1000)}s`);
+  if (drainStormActive)         activeGimmickLabels.push(`🌪️${Math.ceil(drainStormRemain / 1000)}s`);
+  else if (gHasDrainStorm)      activeGimmickLabels.push('🌪️');
+  if (blockLockActive)          activeGimmickLabels.push(`🔐${Math.ceil((BLOCK_LOCK_DURATION - blockLockCycle) / 1000)}s`);
+  if (timePressureActive)       activeGimmickLabels.push(`⏰${Math.ceil(timePressureTimer / 1000)}s ${timePressureCombo}/${timePressureTarget}`);
 
   if (activeGimmickLabels.length > 0) {
     const STRIP_Y2 = AH - 38;
@@ -1803,6 +1810,48 @@ function drawHUD() {
       ix += iconW;
     }
   }
+}
+
+// 기믹 블록 오버레이 (테두리 + 아이콘) 통합 렌더러
+function drawGimmickOverlay(blk, x, y, radii, now) {
+  let strokeColor, lineWidth = 2.5, shadowColor = null, shadowBlur = 0, icon;
+  if (blk.ice) {
+    const p = Math.sin(now / 400);
+    strokeColor = '#88ccff'; shadowColor = '#88ccff'; shadowBlur = 10 + 4 * p; icon = '🧊';
+  } else if (blk.split) {
+    strokeColor = '#ff88cc'; icon = '🔀';
+  } else if (blk.mirror) {
+    strokeColor = '#aaccff'; icon = '🪞';
+  } else if (blk.petrified) {
+    strokeColor = blk.cracked ? '#ff8844' : '#cc9955';
+    lineWidth = blk.cracked ? 3 : 2; icon = blk.cracked ? '🪨' : '🗿';
+  } else if (blk.rot) {
+    const p = 0.5 + 0.4 * Math.sin(now / 500);
+    strokeColor = `rgba(68,187,68,${0.6 + p * 0.4})`; shadowColor = '#44bb44'; shadowBlur = 8 + p * 8; icon = '🦠';
+  } else if (blk.shield) {
+    const p = 0.4 + 0.4 * Math.sin(now / 380);
+    strokeColor = `rgba(96,170,221,${0.6 + p * 0.4})`; shadowColor = '#60aadd'; shadowBlur = 12 + p * 10; lineWidth = 3; icon = '🛡';
+  } else if (blk.revive) {
+    const p = 0.5 + 0.4 * Math.sin(now / 600);
+    strokeColor = `rgba(200,68,255,${0.6 + p * 0.4})`; icon = '💀';
+  } else return;
+
+  ctx.save();
+  if (shadowColor) { ctx.shadowColor = shadowColor; ctx.shadowBlur = shadowBlur; }
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = lineWidth;
+  rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.font = 'bold 16px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(icon, x + CELL / 2, y + CELL / 2 - 1);
+  if (blk.petrified && blk.cracked) {
+    ctx.fillStyle = '#ff8844';
+    ctx.font = 'bold 9px system-ui';
+    ctx.fillText('HP1', x + CELL / 2, y + CELL - PAD - 5);
+  }
+  ctx.restore();
 }
 
 function drawGrid() {
@@ -1876,6 +1925,7 @@ function drawGrid() {
   }
 
   // ── Pass 3: 블록 바디 ──
+  const isColorblind = stageGimmicks.has('colorblind');
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const blk = grid[r][c];
@@ -1883,7 +1933,7 @@ function drawGrid() {
 
       const x  = GX + c * CELL;
       const y  = blkY(r, c);
-      const useGray = stageGimmicks.has('colorblind') && !blk.steel && !blk.item;
+      const useGray = isColorblind && !blk.steel && !blk.item;
       const bc = (useGray ? BGRAY : BCOLOR)[blk.color] || BCOLOR[blk.color];
       const bd = (useGray ? BGRAY : BDARK)[blk.color]  || BDARK[blk.color];
       const blt = (useGray ? BGRAY : BRIGHT)[blk.color] || BRIGHT[blk.color];
@@ -1967,8 +2017,8 @@ function drawGrid() {
       }
 
       // 색맹 모드: 블록 위에 컬러 도형 아이콘 오버레이
-      if (stageGimmicks.has('colorblind') && !blk.steel && !blk.item && !blk.rot && !blk.shield) {
-        const shape = COLOR_SHAPE[color];
+      if (isColorblind && !blk.steel && !blk.item && !blk.rot && !blk.shield) {
+        const shape = COLOR_SHAPE[blk.color];
         if (shape) {
           ctx.save();
           ctx.font = 'bold 18px system-ui';
@@ -1981,113 +2031,7 @@ function drawGrid() {
         }
       }
 
-      // 얼음 블록 — 파란 테두리 + 아이콘
-      if (blk.ice) {
-        ctx.save();
-        ctx.strokeStyle = '#88ccff';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = '#88ccff';
-        ctx.shadowBlur = 10 + 4 * Math.sin(now / 400);
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🧊', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
-
-      // 분열 블록 — 핑크 테두리 + 아이콘
-      if (blk.split) {
-        ctx.save();
-        ctx.strokeStyle = '#ff88cc';
-        ctx.lineWidth = 2.5;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🔀', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
-
-      // 미러 블록 — 하늘색 테두리 + 아이콘
-      if (blk.mirror) {
-        ctx.save();
-        ctx.strokeStyle = '#aaccff';
-        ctx.lineWidth = 2.5;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🪞', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
-
-      // 석화 블록 — 갈색 테두리 + 금 아이콘 + 균열
-      if (blk.petrified) {
-        ctx.save();
-        ctx.strokeStyle = blk.cracked ? '#ff8844' : '#cc9955';
-        ctx.lineWidth = blk.cracked ? 3 : 2;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(blk.cracked ? '🪨' : '🗿', x + CELL / 2, y + CELL / 2 - 1);
-        if (blk.cracked) {
-          ctx.fillStyle = '#ff8844';
-          ctx.font = 'bold 9px system-ui';
-          ctx.fillText('HP1', x + CELL / 2, y + CELL - PAD - 5);
-        }
-        ctx.restore();
-      }
-
-      // 부패 블록 — 초록 맥동 테두리 + 아이콘 (color='rot')
-      if (blk.rot) {
-        const rpulse = 0.5 + 0.4 * Math.sin(now / 500);
-        ctx.save();
-        ctx.shadowColor = '#44bb44';
-        ctx.shadowBlur = 8 + rpulse * 8;
-        ctx.strokeStyle = `rgba(68,187,68,${0.6 + rpulse * 0.4})`;
-        ctx.lineWidth = 2.5;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🦠', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
-
-      // 보호막 블록 — 파란 글로우 + 아이콘
-      if (blk.shield) {
-        const sp = 0.4 + 0.4 * Math.sin(now / 380);
-        ctx.save();
-        ctx.shadowColor = '#60aadd';
-        ctx.shadowBlur = 12 + sp * 10;
-        ctx.strokeStyle = `rgba(96,170,221,${0.6 + sp * 0.4})`;
-        ctx.lineWidth = 3;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🛡', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
-
-      // 부활 블록 — 보라 테두리 + 아이콘
-      if (blk.revive) {
-        const rvp = 0.5 + 0.4 * Math.sin(now / 600);
-        ctx.save();
-        ctx.strokeStyle = `rgba(200,68,255,${0.6 + rvp * 0.4})`;
-        ctx.lineWidth = 2.5;
-        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
-        ctx.stroke();
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('💀', x + CELL / 2, y + CELL / 2 - 1);
-        ctx.restore();
-      }
+      drawGimmickOverlay(blk, x, y, radii, now);
 
       // Item block glow + emoji
       if (blk.item) {
@@ -2499,7 +2443,7 @@ function loop(ts) {
     if (stageGimmicks.has('block_lock')) {
       blockLockCycle += raw;
       if (!blockLockActive && blockLockCycle >= BLOCK_LOCK_COOLDOWN) {
-        blockLockActive = true; blockLockRect = pickLockRect(); blockLockCycle = 0;
+        blockLockActive = true; blockLockRect = pickRect(); blockLockCycle = 0;
         bigPopup('🔐 LOCKED!', '#ff5555');
       } else if (blockLockActive && blockLockCycle >= BLOCK_LOCK_DURATION) {
         blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
@@ -2703,7 +2647,7 @@ function startNode(act, nodeIdx) {
   drainStormTimer = 0; drainStormActive = false; drainStormRemain = 0;
   earthquakeTimer = 0; rotUpdateTimer = 0; reviveQueue = [];
   blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
-  darkZoneRect = stageGimmicks.has('darkzone') ? pickDarkZone() : null;
+  darkZoneRect = stageGimmicks.has('darkzone') ? pickRect() : null;
   darkRevealCell = null; darkRevealTimer = 0;
   timePressureActive = false; timePressureTimer = 0; timePressureCombo = 0;
   timePressureTarget = nodeConfig.timePressure ? nodeConfig.timePressure.combo : 0;
