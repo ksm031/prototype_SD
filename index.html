@@ -122,6 +122,37 @@
     .ach-desc { font-size:11px; color:#606080; }
     .ach-reward { font-size:11px; color:#f0c040; }
     .ach-check { font-size:18px; }
+    /* ── curse selection ── */
+    .curse-card {
+      width:100%; background:rgba(255,60,60,.07);
+      border:1px solid rgba(255,60,60,.22); border-radius:13px;
+      padding:13px 15px; cursor:pointer;
+      transition:background .15s, border-color .15s, transform .1s;
+      display:flex; align-items:flex-start; gap:12px;
+    }
+    .curse-card:active { transform:scale(.97); }
+    .curse-card.selected { border-color:rgba(255,60,60,.7); background:rgba(255,60,60,.15); }
+    .curse-icon { font-size:26px; width:34px; text-align:center; flex-shrink:0; padding-top:2px; }
+    .curse-info { display:flex; flex-direction:column; gap:2px; flex:1; }
+    .curse-name { font-size:14px; font-weight:700; color:#e0e0f0; }
+    .curse-desc { font-size:11px; color:#c05050; }
+    .curse-reward { font-size:11px; color:#7ec850; margin-top:3px; }
+    .curse-check { font-size:18px; flex-shrink:0; align-self:center; }
+    /* ── boss event ── */
+    .event-card {
+      width:100%; background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.12); border-radius:13px;
+      padding:15px 17px; cursor:pointer;
+      transition:background .15s, transform .1s;
+      display:flex; flex-direction:column; gap:5px;
+    }
+    .event-card:active { transform:scale(.97); }
+    .event-card.devil { border-color:rgba(255,80,80,.4); background:rgba(255,80,80,.07); }
+    .event-card.angel { border-color:rgba(120,200,255,.4); background:rgba(120,200,255,.07); }
+    .event-label { font-size:15px; font-weight:700; color:#e0e0f0; }
+    .event-sub   { font-size:11px; color:#8080a8; }
+    /* ── synergy badge ── */
+    .syn-badge { display:inline-block; font-size:10px; background:rgba(240,192,64,.18); color:#f0c040; border-radius:8px; padding:1px 6px; margin-right:4px; }
   </style>
 </head>
 <body>
@@ -212,8 +243,33 @@
       <div style="font-size:12px;color:#7ec850;font-weight:700;letter-spacing:1px" id="af-node-label">노드 클리어!</div>
       <div class="title" style="font-size:22px;margin-top:2px">🎁 아티팩트 선택</div>
       <div style="font-size:11px;color:#505070;margin-top:2px">런 종료까지 유지됩니다</div>
+      <div id="af-synergy-row" style="display:none;margin-top:6px;font-size:11px;color:#f0c040"></div>
     </div>
     <div id="af-list" style="width:100%;display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+
+  <!-- CURSE SELECTION -->
+  <div id="cs" class="screen" style="justify-content:flex-start;padding-top:16px;gap:10px;overflow-y:auto">
+    <div style="text-align:center">
+      <div style="font-size:11px;color:#ff5555;font-weight:700;letter-spacing:1px">선택 사항 · 최대 2개</div>
+      <div class="title" style="font-size:20px;margin-top:2px">⚠️ 저주 선택</div>
+      <div style="font-size:11px;color:#505070;margin-top:2px">저주를 받으면 보상을 얻습니다</div>
+    </div>
+    <div id="cs-list" style="width:100%;display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn btn-p" onclick="startRunWithCurses(false)"
+      style="background:linear-gradient(135deg,#dd3333,#881111);color:#fff">⚠️ 저주 받고 시작</button>
+    <button class="btn btn-s" onclick="startRunWithCurses(true)">저주 없이 시작 →</button>
+  </div>
+
+  <!-- BOSS EVENT -->
+  <div id="be" class="screen" style="justify-content:flex-start;padding-top:20px;gap:12px">
+    <div style="text-align:center">
+      <div style="font-size:12px;font-weight:700;letter-spacing:1px" id="be-type-label">👹 악마의 제안</div>
+      <div class="title" style="font-size:20px;margin-top:2px" id="be-title">선택하라</div>
+      <div style="font-size:11px;color:#505070;margin-top:2px" id="be-desc">한 번의 선택, 되돌릴 수 없다</div>
+    </div>
+    <div id="be-list" style="width:100%;display:flex;flex-direction:column;gap:10px"></div>
+    <button class="btn btn-s" onclick="skipBossEvent()">통과 →</button>
   </div>
 
 </div>
@@ -570,6 +626,75 @@ const ARTIFACT_POOL = [
     apply: c => { c.hpPerBlock *= 1.1; c.impactRange = Math.ceil(c.impactRange * 1.1); c.chainDelay = Math.max(10, Math.floor(c.chainDelay * 0.9)); c.travelMs = Math.max(80, Math.floor(c.travelMs * 0.9)); c.drainMult *= 0.9; c.goldMult *= 2.0; } },
 ];
 
+// ── 시너지 정의 (두 아티팩트가 모두 있을 때 보너스 발동) ────────────
+const SYNERGY_DEFS = [
+  { a:'chain_gear',   b:'attract_core',  icons:'⚙️🧲', desc:'연쇄 간격 -5ms, 충격 범위 +1',      apply: c => { c.chainDelay = Math.max(10, c.chainDelay - 5); c.impactRange += 1; } },
+  { a:'gold_finger',  b:'emperor_seal',  icons:'💰👑', desc:'골드 배율 ×1.5 추가',              apply: c => { c.goldMult *= 1.5; } },
+  { a:'supernova',    b:'storm_catalyst',icons:'💣🎇', desc:'폭탄 반경 +2 추가',                apply: c => { c.bombRadius += 2; } },
+  { a:'rainbow_core', b:'eternal_heart', icons:'🌈♾️', desc:'블록 회복 +3, 드레인 ×0.9',        apply: c => { c.hpPerBlock += 3 * c.maxHp / 100; c.drainMult *= 0.9; } },
+  { a:'first_aid',    b:'blood_pact',    icons:'🩹🩸', desc:'블록 회복 ×1.5',                  apply: c => { c.hpPerBlock *= 1.5; } },
+  { a:'magic_orb',    b:'butterfly',     icons:'🔮🦋', desc:'페이즈 전환 회복 +15',             apply: c => { c.phaseHealAmt += 15; } },
+  { a:'life_sprout',  b:'defense_orb',   icons:'🌿🛡️', desc:'최대 HP +25',                     apply: c => { c.maxHp += 25; c.hp = Math.min(c.maxHp, c.hp + 25); } },
+  { a:'glass_cannon', b:'blood_pact',    icons:'🔫🩸', desc:'위험 구간 회복 추가 +100%',        apply: c => { c.lowHpHealBonus += 1.0; } },
+];
+
+// ── 소모품 풀 ────────────────────────────────────────────────────
+const CONSUMABLE_POOL = [
+  { id:'heal_vial',   icon:'❤️‍🔥', name:'치유 물약',   desc:'HP +25% 즉시 회복',
+    use: () => { const h = Math.round(char.maxHp * 0.25); char.hp = Math.min(char.maxHp, char.hp + h); popup(AW/2, AH/2-50, '+' + h + ' HP', '#7ec850'); } },
+  { id:'time_stop',   icon:'⏸',   name:'시간 정지',   desc:'10초간 HP 드레인 0',
+    use: () => { consumeEffects.timeStop = 10000; bigPopup('⏸ TIME STOP!', '#88aaff'); } },
+  { id:'gold_rain',   icon:'🪙',   name:'황금비',      desc:'즉시 골드 +150',
+    use: () => { sGold += 150; popup(AW/2, AH/2-50, '+150 G', '#f0c040'); } },
+  { id:'chain_surge', icon:'⚡',   name:'연쇄 폭발',   desc:'다음 체인 충격 범위 +3',
+    use: () => { consumeEffects.chainSurge = 3; bigPopup('⚡ SURGE!', '#f0c040'); } },
+  { id:'purge',       icon:'🔥',   name:'정화의 불꽃', desc:'강철/얼음/시한폭탄 즉시 제거',
+    use: () => { purgeSpecialBlocks(); bigPopup('🔥 PURGE!', '#ff8844'); } },
+  { id:'mega_bomb',   icon:'💥',   name:'메가 폭탄',   desc:'그리드 중앙 5×5 즉시 폭파',
+    use: () => { triggerMegaBomb(); bigPopup('💥 MEGA BOMB!', '#ff4444'); } },
+];
+
+// ── 저주 정의 ─────────────────────────────────────────────────────
+const CURSE_DEFS = [
+  { id:'fast_drain',  icon:'🩸', name:'피의 저주',    desc:'드레인 속도 +30%',
+    reward:'소모품 2개 지급', rewardFn: () => { grantConsumableQuiet(); grantConsumableQuiet(); } },
+  { id:'steel_storm', icon:'⚙️', name:'강철 폭풍',    desc:'강철 블록 2배 빠르게 등장',
+    reward:'즉시 골드 +300',  rewardFn: () => { sGold += 300; } },
+  { id:'hp_curse',    icon:'💔', name:'약한 심장',    desc:'최대 HP -30%',
+    reward:'첫 선택 희귀 보장', rewardFn: () => { curseGuaranteeRare = true; } },
+  { id:'slow_heal',   icon:'🤕', name:'더딘 회복',    desc:'블록 회복량 -30%',
+    reward:'소모품 1개 + 골드 +100', rewardFn: () => { grantConsumableQuiet(); sGold += 100; } },
+  { id:'chaos_curse', icon:'🌀', name:'혼돈의 저주',  desc:'25초마다 지진 발생',
+    reward:'소모품 2개 지급',  rewardFn: () => { grantConsumableQuiet(); grantConsumableQuiet(); } },
+];
+
+// ── 보스 이벤트 풀 ───────────────────────────────────────────────
+// 보스 이벤트 효과는 다음 노드에 반영되도록 runState 플래그 사용
+const BOSS_EVENT_POOL = [
+  { type:'devil', icon:'👹', title:'피의 거래',   desc:'다음 노드 최대 HP -30% 대가로 아티팩트 선택 강화',
+    choices:[
+      { label:'💀 수락 (다음 노드 최대 HP -30%)', sub:'이번 아티팩트 선택에서 희귀/전설 포함',
+        fn: () => { runState._devilDeal = true; runState._nextNodeHpMult = 0.7; } },
+      { label:'거절', sub:'아무것도 잃지 않음', fn: () => {} },
+    ]},
+  { type:'devil', icon:'💰', title:'황금의 저주', desc:'보유 골드 200을 바치고 소모품 2개를 얻어라',
+    choices:[
+      { label:'🪙 수락 (골드 -200)', sub:'소모품 2개 즉시 획득',
+        fn: () => { saveGold(Math.max(0, getGold() - 200)); grantConsumableQuiet(); grantConsumableQuiet(); } },
+      { label:'거절', sub:'아무것도 잃지 않음', fn: () => {} },
+    ]},
+  { type:'angel', icon:'😇', title:'천사의 은총', desc:'다음 노드 최대 HP +20% 보너스',
+    choices:[
+      { label:'✨ 감사히 받기', sub:'다음 노드 최대 HP +20%',
+        fn: () => { runState._nextNodeHpMult = (runState._nextNodeHpMult || 1) * 1.2; } },
+    ]},
+  { type:'angel', icon:'🎁', title:'은혜의 선물', desc:'소모품과 골드를 무료로 받아라',
+    choices:[
+      { label:'✨ 감사히 받기', sub:'소모품 1개 + 골드 +200 저장',
+        fn: () => { grantConsumableQuiet(); saveGold(getGold() + 200); } },
+    ]},
+];
+
 // ── 도전 과제 정의 ───────────────────────────────────────
 const ACHIEVEMENT_DEFS = [
   { id:'first_run',       get name(){ return t('ach_first_run_name'); },        get desc(){ return t('ach_first_run_desc'); },        icon:'🐾', rewardGold:500,   rewardRare:0,  check: s => s.totalRuns >= 1 },
@@ -743,6 +868,15 @@ let activePhaseDefs = null;   // 이번 노드에 적용되는 페이즈 정의
 let nodeClearTriggered = false;
 let prevPhase = -1;           // 페이즈 전환 감지용
 
+// ── 로그라이크 확장 상태 ─────────────────────────────────
+let runConsumables   = [];           // [{id,icon,name,use}] 최대 3개
+let activeCurses     = new Set();    // 선택된 저주 IDs
+let consumeEffects   = { timeStop: 0, chainSurge: 0 };  // 현재 발동 중인 소모품 효과
+let curseGuaranteeRare = false;      // hp_curse 보상: 다음 아티팩트 선택에서 희귀 보장
+let chaosCurseTimer  = 25000;        // chaos_curse 지진 타이머
+let selectedCurses   = [];           // 저주 선택 화면에서 선택 중인 curse ID 목록
+let _pendingBossEvent = null;        // 보스 이벤트 화면 표시 후 계속할 콜백
+
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
 let popups    = [];  // { x,y,text,color,life,vy,big }
@@ -768,7 +902,7 @@ const saveAchievements = v  => localStorage.setItem(SK.achieve, JSON.stringify(v
 //  SCREEN
 // ═══════════════════════════════════════
 function showScreen(id) {
-  ['ms','rs','ss','af'].forEach(s => {
+  ['ms','rs','ss','af','cs','be'].forEach(s => {
     const el = document.getElementById(s);
     if (!el) return;
     el.style.display = 'none';
@@ -1054,6 +1188,7 @@ function initChar() {
     chainOverflow:      false,
   };
   applyArtifacts();
+  applyCurseEffects();
   // 노드 드레인 배율 (아티팩트 vitality 위에 추가로 적용)
   if (nodeConfig) char.drainMult *= nodeConfig.drainMult;
   // phaseTimeBonus → activePhaseDefs에 반영
@@ -1076,6 +1211,166 @@ function applyArtifacts() {
     const art = ARTIFACT_POOL.find(a => a.id === 'resonance');
     if (art && art.apply) art.apply(char);
   }
+  applySynergies(char);
+}
+
+function applySynergies(c) {
+  for (const syn of SYNERGY_DEFS) {
+    if (runState.artifacts.includes(syn.a) && runState.artifacts.includes(syn.b)) {
+      syn.apply(c);
+    }
+  }
+}
+
+function applyCurseEffects() {
+  if (activeCurses.has('fast_drain')) char.drainMult *= 1.3;
+  if (activeCurses.has('hp_curse'))   { char.maxHp = Math.max(30, Math.round(char.maxHp * 0.7)); char.hp = char.maxHp; }
+  if (activeCurses.has('slow_heal'))  char.hpPerBlock *= 0.7;
+  // 보스 이벤트 캐리오버: 다음 노드 최대 HP 배율
+  if (runState._nextNodeHpMult) {
+    char.maxHp = Math.max(30, Math.round(char.maxHp * runState._nextNodeHpMult));
+    char.hp = char.maxHp;
+    delete runState._nextNodeHpMult;
+  }
+}
+
+// ── 소모품 유틸 ─────────────────────────────────────────────────
+function grantConsumableQuiet() {
+  if (runConsumables.length >= 3) return;
+  const available = CONSUMABLE_POOL.filter(c => !runConsumables.find(r => r.id === c.id));
+  if (!available.length) return;
+  runConsumables.push(available[Math.floor(Math.random() * available.length)]);
+}
+
+function grantConsumable() {
+  if (runConsumables.length >= 3) return;
+  const available = CONSUMABLE_POOL.filter(c => !runConsumables.find(r => r.id === c.id));
+  if (!available.length) return;
+  const pick = available[Math.floor(Math.random() * available.length)];
+  runConsumables.push(pick);
+  bigPopup(pick.icon + ' ' + pick.name + ' 획득!', '#aaddff');
+}
+
+function useConsumable(idx) {
+  if (idx < 0 || idx >= runConsumables.length) return;
+  if (gstate !== 'playing') return;
+  const c = runConsumables.splice(idx, 1)[0];
+  c.use();
+  haptic([20, 10, 40]);
+}
+
+function purgeSpecialBlocks() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const blk = grid[r][c];
+      if (!blk) continue;
+      if (blk.steel || blk.ice || blk.timebomb) {
+        burstParticles(r, c, '#ff8844');
+        grid[r][c] = null;
+      }
+    }
+  gravity();
+}
+
+function triggerMegaBomb() {
+  const cr = Math.floor(ROWS / 2), cc = Math.floor(COLS / 2);
+  const rad = 2;
+  for (let r = cr - rad; r <= cr + rad; r++)
+    for (let c = cc - rad; c <= cc + rad; c++) {
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS || !grid[r][c]) continue;
+      burstParticles(r, c, '#ff4444');
+      const destroyed = removeBlock(r, c, true);
+      if (destroyed) { sBlocks++; sGold += Math.round(char.goldPerBlock * char.goldMult); }
+    }
+  gravity();
+}
+
+// ── 저주 선택 화면 ───────────────────────────────────────────────
+function showCurseScreen() {
+  selectedCurses = [];
+  // 3개 랜덤 선택
+  const pool = [...CURSE_DEFS].sort(() => Math.random() - 0.5).slice(0, 3);
+  const list = document.getElementById('cs-list');
+  list.innerHTML = pool.map(c => `
+    <div class="curse-card" id="curse-${c.id}" onclick="toggleCurse('${c.id}', this)">
+      <div class="curse-icon">${c.icon}</div>
+      <div class="curse-info">
+        <div class="curse-name">${c.name}</div>
+        <div class="curse-desc">⚠️ ${c.desc}</div>
+        <div class="curse-reward">🎁 보상: ${c.reward}</div>
+      </div>
+      <div class="curse-check" id="curse-chk-${c.id}">□</div>
+    </div>
+  `).join('');
+  showScreen('cs');
+}
+
+function toggleCurse(id, el) {
+  const idx = selectedCurses.indexOf(id);
+  const chk = document.getElementById('curse-chk-' + id);
+  if (idx === -1) {
+    if (selectedCurses.length >= 2) return; // 최대 2개
+    selectedCurses.push(id);
+    el.classList.add('selected');
+    chk.textContent = '☑';
+  } else {
+    selectedCurses.splice(idx, 1);
+    el.classList.remove('selected');
+    chk.textContent = '□';
+  }
+}
+
+function startRunWithCurses(skip) {
+  activeCurses = new Set(skip ? [] : selectedCurses);
+  runConsumables = [];
+  consumeEffects = { timeStop: 0, chainSurge: 0 };
+  curseGuaranteeRare = false;
+  chaosCurseTimer = 25000;
+  runState._devilDeal = false;
+  const prog = getRunProg(); prog.totalRuns++; saveRunProg(prog);
+  startNode(0, 0);
+  // 저주 보상 적용 (startNode 이후이므로 char/sGold 초기화 완료 상태)
+  for (const curseId of activeCurses) {
+    const curse = CURSE_DEFS.find(c => c.id === curseId);
+    if (curse) curse.rewardFn();
+  }
+}
+
+// ── 보스 이벤트 화면 ─────────────────────────────────────────────
+let _currentBossEvent = null;
+
+function showBossEvent(afterFn) {
+  _pendingBossEvent = afterFn;
+  _currentBossEvent = BOSS_EVENT_POOL[Math.floor(Math.random() * BOSS_EVENT_POOL.length)];
+  const event = _currentBossEvent;
+  const isDevil = event.type === 'devil';
+  document.getElementById('be-type-label').textContent = isDevil ? '👹 악마의 제안' : '😇 천사의 선물';
+  document.getElementById('be-type-label').style.color = isDevil ? '#ff5555' : '#88aaff';
+  document.getElementById('be-title').textContent = event.icon + ' ' + event.title;
+  document.getElementById('be-desc').textContent = event.desc;
+
+  const list = document.getElementById('be-list');
+  list.innerHTML = event.choices.map((ch, i) => `
+    <div class="event-card ${event.type}" onclick="selectBossEventChoice(${i})">
+      <div class="event-label">${ch.label}</div>
+      <div class="event-sub">${ch.sub}</div>
+    </div>
+  `).join('');
+  showScreen('be');
+}
+
+function selectBossEventChoice(idx) {
+  if (_currentBossEvent && _currentBossEvent.choices[idx]) {
+    _currentBossEvent.choices[idx].fn();
+  }
+  _currentBossEvent = null;
+  skipBossEvent();
+}
+
+function skipBossEvent() {
+  const fn = _pendingBossEvent;
+  _pendingBossEvent = null;
+  if (fn) fn();
 }
 
 function goBase() {
@@ -1201,6 +1496,10 @@ function healFromBlock(chainSize) {
 }
 
 function runChain(chainBlocks, sr, sc) {
+  // 소모품: 연쇄 폭발 (chain_surge) — 이번 체인 범위 일시 확장
+  const surgeBonus = consumeEffects.chainSurge || 0;
+  if (surgeBonus > 0) { char.impactRange += surgeBonus; consumeEffects.chainSurge = 0; }
+
   const ordered = byDist(chainBlocks, sr, sc);
   // 체인 블록 위치 집합 (wave 피해 수집 시 제외용)
   const chainSet = new Set(chainBlocks.map(b => b.r * COLS + b.c));
@@ -1226,7 +1525,7 @@ function runChain(chainBlocks, sr, sc) {
         sGold += Math.round(char.goldPerBlock * char.goldMult * (wMirror ? 2 : 1));
         if (timePressureActive) timePressureCombo++;
       }
-      finishChain(combo);
+      finishChain(combo, surgeBonus);
       return;
     }
 
@@ -1476,7 +1775,10 @@ function dropItemBlock(combo) {
   popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, type === 'bomb' ? '💣' : '🧨', '#ffffff', true);
 }
 
-function finishChain(combo) {
+function finishChain(combo, surgeUsed) {
+  // chain_surge 범위 원복
+  if (surgeUsed > 0) char.impactRange -= surgeUsed;
+
   if (combo > sMaxCombo) sMaxCombo = combo;
   if (combo >= 5) {
     const bonusGold = Math.round((combo * 5 + char.comboGoldBonus) * char.goldMult);
@@ -1791,6 +2093,39 @@ function drawHUD() {
     ctx.fillText(activeGimmickLabels.join('  '), AW / 2, STRIP_Y2 + 6);
   }
 
+  // 소모품 슬롯 (HUD 우측 중단 — HP바 아래, 정보 행 위)
+  // 슬롯 3개, 각 26×14px, y=28~42, 우측 정렬
+  {
+    const slotW = 26, slotH = 14, slotGap = 3;
+    const totalSlotW = 3 * slotW + 2 * slotGap;
+    const slotStartX = AW - 4 - totalSlotW;
+    const slotY = 28;
+    ctx.font = '11px system-ui';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 3; i++) {
+      const sx = slotStartX + i * (slotW + slotGap);
+      const hasItem = i < runConsumables.length;
+      // 슬롯 배경
+      ctx.fillStyle = hasItem ? 'rgba(80,120,200,0.25)' : 'rgba(255,255,255,0.05)';
+      rRect(sx, slotY, slotW, slotH, 4); ctx.fill();
+      ctx.strokeStyle = hasItem ? 'rgba(120,160,255,0.55)' : 'rgba(255,255,255,0.10)';
+      ctx.lineWidth = 1;
+      rRect(sx, slotY, slotW, slotH, 4); ctx.stroke();
+      if (hasItem) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(runConsumables[i].icon, sx + slotW / 2, slotY + slotH / 2);
+      }
+    }
+    // timeStop 활성 표시
+    if (consumeEffects.timeStop > 0) {
+      ctx.fillStyle = '#88aaff';
+      ctx.font = 'bold 9px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`⏸${Math.ceil(consumeEffects.timeStop/1000)}s`, slotStartX, slotY + slotH + 8);
+    }
+  }
+
   // 아티팩트 아이콘 스트립 (하단, 그리드 아래)
   if (runState.artifacts.length > 0) {
     const STRIP_Y = AH - 22;
@@ -1798,6 +2133,10 @@ function drawHUD() {
     ctx.fillRect(0, STRIP_Y - 4, AW, 26);
     ctx.font = '14px system-ui';
     ctx.textBaseline = 'middle';
+    // 활성 시너지 수 표시
+    let activeSynCount = 0;
+    for (const syn of SYNERGY_DEFS)
+      if (runState.artifacts.includes(syn.a) && runState.artifacts.includes(syn.b)) activeSynCount++;
     const iconW = 20;
     const totalW = runState.artifacts.length * iconW;
     let ix = (AW - totalW) / 2;
@@ -1808,6 +2147,13 @@ function drawHUD() {
         ctx.fillText(art.icon, ix + iconW / 2, STRIP_Y + 9);
       }
       ix += iconW;
+    }
+    // 시너지 배지
+    if (activeSynCount > 0) {
+      ctx.font = 'bold 9px system-ui';
+      ctx.fillStyle = '#f0c040';
+      ctx.textAlign = 'right';
+      ctx.fillText(`✨×${activeSynCount}`, AW - 4, STRIP_Y + 9);
     }
   }
 }
@@ -2359,7 +2705,8 @@ function loop(ts) {
     if (steelSpawnTimer <= 0) {
       spawnSteel();
       const aph = activePhaseDefs || PHASE_DEFS;
-      steelSpawnTimer = aph[Math.min(currentPhase, aph.length - 1)].steelInterval;
+      const baseInterval = aph[Math.min(currentPhase, aph.length - 1)].steelInterval;
+      steelSpawnTimer = baseInterval * (activeCurses.has('steel_storm') ? 0.5 : 1);
     }
 
     // 시한폭탄 블럭 스폰 타이머
@@ -2379,10 +2726,21 @@ function loop(ts) {
         }
       }
 
+    // 소모품: 시간 정지 — 드레인 카운트다운
+    if (consumeEffects.timeStop > 0) consumeEffects.timeStop -= raw;
+
+    // 저주: 혼돈의 저주 — 25초마다 지진
+    if (activeCurses.has('chaos_curse')) {
+      chaosCurseTimer -= raw;
+      if (chaosCurseTimer <= 0) { chaosCurseTimer = 25000; triggerEarthquake(); }
+    }
+
     const pulseMult  = (hyperPulseActive ? 2.0 : 1.0) * (drainStormActive ? 2.0 : 1.0);
     let drainMultFinal = char.drainMult * pulseMult;
     // 방어의 오브: HP < 30% 시 드레인 -30%
     if (char.lowHpShield && char.hp / char.maxHp < 0.30) drainMultFinal *= 0.7;
+    // 소모품: 시간 정지 중 드레인 0
+    if (consumeEffects.timeStop > 0) drainMultFinal = 0;
     const drainRate  = (16.0 + gameElapsed / 1000 * 0.35) * drainMultFinal;
     char.hp -= drainRate * raw / 1000;
     if (char.hp <= 0) { char.hp = 0; endGame('hp'); }
@@ -2524,6 +2882,23 @@ function handleTap(cx, cy) {
   const px = (cx - rect.left) * scaleX;
   const py = (cy - rect.top)  * scaleY;
 
+  // HUD 소모품 슬롯 탭 (y=28~42, 우측)
+  if (py < GY) {
+    if (py >= 28 && py <= 42 && runConsumables.length > 0) {
+      const slotW = 26, slotGap = 3;
+      const totalSlotW = 3 * slotW + 2 * slotGap;
+      const slotStartX = AW - 4 - totalSlotW;
+      for (let i = 0; i < 3; i++) {
+        const sx = slotStartX + i * (slotW + slotGap);
+        if (px >= sx && px <= sx + slotW && i < runConsumables.length) {
+          useConsumable(i);
+          return;
+        }
+      }
+    }
+    return;
+  }
+
   const col = Math.floor((px - GX) / CELL);
   const row = Math.floor((py - GY) / CELL);
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
@@ -2606,10 +2981,8 @@ function safeTimeout(fn, ms) {
 
 // ── 런/노드 플로우 ──────────────────────────────────────
 function startRun() {
-  runState = { act: 0, node: 0, artifacts: [] };
-  // 런 카운트 증가
-  const prog = getRunProg(); prog.totalRuns++; saveRunProg(prog);
-  startNode(0, 0);
+  runState = { act: 0, node: 0, artifacts: [], _devilDeal: false };
+  showCurseScreen();
 }
 
 function startNode(act, nodeIdx) {
@@ -2632,9 +3005,11 @@ function startNode(act, nodeIdx) {
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   currentPhase = 0; colorCount = 3; COLORS = ALL_COLORS.slice(0, 3);
   hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
-  steelSpawnTimer = activePhaseDefs[0].steelInterval;
+  steelSpawnTimer = activePhaseDefs[0].steelInterval * (activeCurses.has('steel_storm') ? 0.5 : 1);
   timebombSpawnTimer = TIMEBOMB_INTERVALS[0];
   slowFactor = 1.0; lastTS = 0; locked = false;
+  consumeEffects = { timeStop: 0, chainSurge: 0 };
+  chaosCurseTimer = 25000;
   particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
 
@@ -2709,8 +3084,11 @@ function nodeCleared() {
   safeTimeout(() => {
     slowFactor = 1.0;
     if (isFinal) {
-      // 최종 클리어 → 결과 화면
       showResult(true);
+    } else if (nodeConfig.type === 'boss') {
+      // 보스 클리어 후 소모품 1개 지급 + 보스 이벤트 화면
+      grantConsumable();
+      showBossEvent(() => showArtifactChoice());
     } else {
       showArtifactChoice();
     }
@@ -2718,8 +3096,13 @@ function nodeCleared() {
 }
 
 function getArtifactChoices(pool) {
-  const rarities = pool === 'common'    ? ['common']
-                 : pool === 'rare'      ? ['common', 'rare']
+  // 저주 보상: hp_curse → 첫 선택에서 희귀 보장
+  let effectivePool = pool;
+  if (curseGuaranteeRare && effectivePool === 'common') { effectivePool = 'rare'; curseGuaranteeRare = false; }
+  // 보스 악마 딜 수락 → 다음 선택 희귀/전설 포함
+  if (runState._devilDeal) { if (effectivePool !== 'legendary') effectivePool = 'rare'; runState._devilDeal = false; }
+  const rarities = effectivePool === 'common'    ? ['common']
+                 : effectivePool === 'rare'      ? ['common', 'rare']
                  : ['common', 'rare', 'legendary'];
   const available = ARTIFACT_POOL.filter(a => rarities.includes(a.rarity) && !runState.artifacts.includes(a.id));
   const shuffled  = [...available].sort(() => Math.random() - 0.5);
@@ -2735,16 +3118,36 @@ function showArtifactChoice() {
 
   const rarityLabel = { common: '일반', rare: '희귀', legendary: '전설' };
   const list = document.getElementById('af-list');
-  list.innerHTML = choices.map(art => `
+  list.innerHTML = choices.map(art => {
+    // 이 아티팩트를 선택하면 시너지가 발동되는지 체크
+    const synMatches = SYNERGY_DEFS.filter(s =>
+      (s.a === art.id && runState.artifacts.includes(s.b)) ||
+      (s.b === art.id && runState.artifacts.includes(s.a))
+    );
+    const synBadge = synMatches.length > 0
+      ? `<span class="syn-badge">✨ 시너지: ${synMatches.map(s => s.desc).join(' / ')}</span>` : '';
+    return `
     <div class="art-card ${art.rarity}" onclick="selectArtifact('${art.id}')">
       <div class="art-icon">${art.icon}</div>
       <div class="art-info">
         <div class="art-name">${art.name}</div>
         <div class="art-desc">${art.desc}</div>
         <span class="art-badge ${art.rarity}">${rarityLabel[art.rarity] || art.rarity}</span>
+        ${synBadge}
       </div>
     </div>
-  `).join('');
+  `}).join('');
+
+  // 현재 활성 시너지 표시
+  const activeSyns = SYNERGY_DEFS.filter(s =>
+    runState.artifacts.includes(s.a) && runState.artifacts.includes(s.b));
+  const synRow = document.getElementById('af-synergy-row');
+  if (activeSyns.length > 0) {
+    synRow.style.display = 'block';
+    synRow.innerHTML = '✨ 활성 시너지: ' + activeSyns.map(s => `${s.icons} ${s.desc}`).join('  |  ');
+  } else {
+    synRow.style.display = 'none';
+  }
 
   showScreen('af');
 }
