@@ -1780,18 +1780,22 @@ function finishChain(combo, surgeUsed) {
 
   // 연쇄 범람: 10콤보 이상 시 추가 블록 파괴
   if (char.chainOverflow && combo >= 10) {
-    // 그리드에서 임의의 남은 블록 1개 추가 파괴
+    // 일반 블록(비강철/비아이템/비얼음/비방어막)만 대상
     const remaining = [];
     for (let r = 0; r < ROWS; r++)
-      for (let c = 0; c < COLS; c++)
-        if (grid[r][c] && !grid[r][c].steel && !grid[r][c].item) remaining.push({ r, c });
+      for (let c = 0; c < COLS; c++) {
+        const b = grid[r][c];
+        if (b && !b.steel && !b.item && !b.ice && !isProtectedByShield(r, c)) remaining.push({ r, c });
+      }
     if (remaining.length) {
       const pick = remaining[Math.floor(Math.random() * remaining.length)];
-      burstParticles(pick.r, pick.c, '#44aaff');
-      removeBlock(pick.r, pick.c);
-      sBlocks++;
-      sGold += Math.round(char.goldPerBlock * char.goldMult);
-      popups.push({ x: GX + pick.c * CELL + CELL / 2, y: GY + pick.r * CELL, text: '💦 OVERFLOW', color: '#44aaff', life: 1.0, vy: -1.8, big: true });
+      const removed = removeBlock(pick.r, pick.c);
+      if (removed) {
+        burstParticles(pick.r, pick.c, '#44aaff');
+        sBlocks++;
+        sGold += Math.round(char.goldPerBlock * char.goldMult);
+        popups.push({ x: GX + pick.c * CELL + CELL / 2, y: GY + pick.r * CELL, text: '💦 OVERFLOW', color: '#44aaff', life: 1.0, vy: -1.8, big: true });
+      }
     }
   }
 
