@@ -86,10 +86,10 @@
     .res-row b { color: #f0c040; font-size: 17px; }
     /* ── pause button ── */
     #pause-btn {
-      display: none; position: absolute; top: 12px; right: 12px;
-      z-index: 10; width: 40px; height: 40px; border: none; border-radius: 10px;
+      display: none; position: absolute; top: 12px; left: 8px;
+      z-index: 10; width: 36px; height: 36px; border: none; border-radius: 9px;
       background: rgba(255,255,255,.15); backdrop-filter: blur(4px);
-      color: #fff; font-size: 18px; cursor: pointer;
+      color: #fff; font-size: 16px; cursor: pointer;
       transition: background .15s, transform .1s;
     }
     #pause-btn:active { transform: scale(.9); }
@@ -162,6 +162,7 @@
   <div id="ms" class="screen active">
     <div class="title">CHOMP CHAIN</div>
     <div class="sub">블록을 탭해 캐릭터를 먹여라!</div>
+    <div style="font-size:10px;color:#404060;margin-top:-10px;letter-spacing:1px">v0.6.0</div>
     <div class="stats-box">
       <div class="stat-row"><span>⏳ 최장 생존</span><b id="m-hs">0초</b></div>
       <div class="stat-row"><span>💰 보유 골드</span><b id="m-gold">0 G</b></div>
@@ -2130,7 +2131,7 @@ function drawHUD() {
   const drainColor = drainRate < 1.0 ? '#7ec850' : drainRate < 1.8 ? '#f0c040' : '#ff5555';
   ctx.fillStyle = drainColor;
   ctx.textAlign = 'left';
-  ctx.fillText(`🔥 ${drainRate.toFixed(1)}/s`, BAR_X, 44);
+  ctx.fillText(`🔥 ${drainRate.toFixed(1)}/s`, 50, 44);  // 50px: 일시정지 버튼(36px)+여백
 
   // 노드 진행 (중앙): "1-2  45s/75s"
   if (nodeConfig) {
