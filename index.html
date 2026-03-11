@@ -122,22 +122,6 @@
     .ach-desc { font-size:11px; color:#606080; }
     .ach-reward { font-size:11px; color:#f0c040; }
     .ach-check { font-size:18px; }
-    /* ── curse selection ── */
-    .curse-card {
-      width:100%; background:rgba(255,60,60,.07);
-      border:1px solid rgba(255,60,60,.22); border-radius:13px;
-      padding:13px 15px; cursor:pointer;
-      transition:background .15s, border-color .15s, transform .1s;
-      display:flex; align-items:flex-start; gap:12px;
-    }
-    .curse-card:active { transform:scale(.97); }
-    .curse-card.selected { border-color:rgba(255,60,60,.7); background:rgba(255,60,60,.15); }
-    .curse-icon { font-size:26px; width:34px; text-align:center; flex-shrink:0; padding-top:2px; }
-    .curse-info { display:flex; flex-direction:column; gap:2px; flex:1; }
-    .curse-name { font-size:14px; font-weight:700; color:#e0e0f0; }
-    .curse-desc { font-size:11px; color:#c05050; }
-    .curse-reward { font-size:11px; color:#7ec850; margin-top:3px; }
-    .curse-check { font-size:18px; flex-shrink:0; align-self:center; }
     /* ── boss event ── */
     .event-card {
       width:100%; background:rgba(255,255,255,.05);
@@ -250,18 +234,6 @@
   </div>
 
   <!-- CURSE SELECTION -->
-  <div id="cs" class="screen" style="justify-content:flex-start;padding-top:16px;gap:10px;overflow-y:auto">
-    <div style="text-align:center">
-      <div style="font-size:11px;color:#ff5555;font-weight:700;letter-spacing:1px">선택 사항 · 최대 2개</div>
-      <div class="title" style="font-size:20px;margin-top:2px">⚠️ 저주 선택</div>
-      <div style="font-size:11px;color:#505070;margin-top:2px">저주를 받으면 보상을 얻습니다</div>
-    </div>
-    <div id="cs-list" style="width:100%;display:flex;flex-direction:column;gap:8px"></div>
-    <button class="btn btn-p" onclick="startRunWithCurses(false)"
-      style="background:linear-gradient(135deg,#dd3333,#881111);color:#fff">⚠️ 저주 받고 시작</button>
-    <button class="btn btn-s" onclick="startRunWithCurses(true)">저주 없이 시작 →</button>
-  </div>
-
   <!-- STAGE INTRO -->
   <div id="si" class="screen" style="justify-content:flex-start;padding-top:24px;gap:14px">
     <div style="text-align:center">
@@ -270,7 +242,6 @@
       <div style="font-size:11px;color:#505070;margin-top:2px" id="si-time-label">제한 시간 60초</div>
     </div>
     <div id="si-gimmick-list" style="width:100%;display:flex;flex-direction:column;gap:8px"></div>
-    <div id="si-curse-list" style="width:100%;display:flex;flex-direction:column;gap:6px"></div>
     <button class="btn btn-p" onclick="beginNode()" style="margin-top:4px">▶ 시작!</button>
   </div>
 
@@ -651,20 +622,6 @@ const CONSUMABLE_POOL = [
     use: () => { triggerMegaBomb(); bigPopup('💥 MEGA BOMB!', '#ff4444'); } },
 ];
 
-// ── 저주 정의 ─────────────────────────────────────────────────────
-const CURSE_DEFS = [
-  { id:'fast_drain',  icon:'🩸', name:'피의 저주',    desc:'드레인 속도 +30%',
-    reward:'소모품 2개 지급', rewardFn: () => { grantConsumableQuiet(); grantConsumableQuiet(); } },
-  { id:'steel_storm', icon:'⚙️', name:'강철 폭풍',    desc:'강철 블록 2배 빠르게 등장',
-    reward:'즉시 골드 +300',  rewardFn: () => { sGold += 300; } },
-  { id:'hp_curse',    icon:'💔', name:'약한 심장',    desc:'최대 HP -30%',
-    reward:'첫 선택 희귀 보장', rewardFn: () => { curseGuaranteeRare = true; } },
-  { id:'slow_heal',   icon:'🤕', name:'더딘 회복',    desc:'블록 회복량 -30%',
-    reward:'소모품 1개 + 골드 +100', rewardFn: () => { grantConsumableQuiet(); sGold += 100; } },
-  { id:'chaos_curse', icon:'🌀', name:'혼돈의 저주',  desc:'25초마다 지진 발생',
-    reward:'소모품 2개 지급',  rewardFn: () => { grantConsumableQuiet(); grantConsumableQuiet(); } },
-];
-
 // ── 보스 이벤트 풀 ───────────────────────────────────────────────
 // 보스 이벤트 효과는 다음 노드에 반영되도록 runState 플래그 사용
 const BOSS_EVENT_POOL = [
@@ -868,11 +825,7 @@ let nodeClearTriggered = false;
 
 // ── 로그라이크 확장 상태 ─────────────────────────────────
 let runConsumables   = [];           // [{id,icon,name,use}] 최대 3개
-let activeCurses     = new Set();    // 선택된 저주 IDs
 let consumeEffects   = { timeStop: 0, chainSurge: 0 };  // 현재 발동 중인 소모품 효과
-let curseGuaranteeRare = false;      // hp_curse 보상: 다음 아티팩트 선택에서 희귀 보장
-let chaosCurseTimer  = 25000;        // chaos_curse 지진 타이머
-let selectedCurses   = [];           // 저주 선택 화면에서 선택 중인 curse ID 목록
 let _pendingBossEvent = null;        // 보스 이벤트 화면 표시 후 계속할 콜백
 
 // Visual fx
@@ -1186,7 +1139,12 @@ function initChar() {
     chainOverflow:      false,
   };
   applyArtifacts();
-  applyCurseEffects();
+  // 보스 이벤트 캐리오버: 다음 노드 최대 HP 배율
+  if (runState._nextNodeHpMult) {
+    char.maxHp = Math.max(30, Math.round(char.maxHp * runState._nextNodeHpMult));
+    char.hp = char.maxHp;
+    delete runState._nextNodeHpMult;
+  }
   // 노드 드레인 배율 (아티팩트 vitality 위에 추가로 적용)
   if (nodeConfig) char.drainMult *= nodeConfig.drainMult;
 }
@@ -1211,18 +1169,6 @@ function applySynergies(c) {
     if (runState.artifacts.includes(syn.a) && runState.artifacts.includes(syn.b)) {
       syn.apply(c);
     }
-  }
-}
-
-function applyCurseEffects() {
-  if (activeCurses.has('fast_drain')) char.drainMult *= 1.3;
-  if (activeCurses.has('hp_curse'))   { char.maxHp = Math.max(30, Math.round(char.maxHp * 0.7)); char.hp = char.maxHp; }
-  if (activeCurses.has('slow_heal'))  char.hpPerBlock *= 0.7;
-  // 보스 이벤트 캐리오버: 다음 노드 최대 HP 배율
-  if (runState._nextNodeHpMult) {
-    char.maxHp = Math.max(30, Math.round(char.maxHp * runState._nextNodeHpMult));
-    char.hp = char.maxHp;
-    delete runState._nextNodeHpMult;
   }
 }
 
@@ -1275,57 +1221,6 @@ function triggerMegaBomb() {
       if (destroyed) { sBlocks++; sGold += Math.round(char.goldPerBlock * char.goldMult); }
     }
   gravity();
-}
-
-// ── 저주 선택 화면 ───────────────────────────────────────────────
-function showCurseScreen() {
-  selectedCurses = [];
-  // 3개 랜덤 선택
-  const pool = [...CURSE_DEFS].sort(() => Math.random() - 0.5).slice(0, 3);
-  const list = document.getElementById('cs-list');
-  list.innerHTML = pool.map(c => `
-    <div class="curse-card" id="curse-${c.id}" onclick="toggleCurse('${c.id}', this)">
-      <div class="curse-icon">${c.icon}</div>
-      <div class="curse-info">
-        <div class="curse-name">${c.name}</div>
-        <div class="curse-desc">⚠️ ${c.desc}</div>
-        <div class="curse-reward">🎁 보상: ${c.reward}</div>
-      </div>
-      <div class="curse-check" id="curse-chk-${c.id}">□</div>
-    </div>
-  `).join('');
-  showScreen('cs');
-}
-
-function toggleCurse(id, el) {
-  const idx = selectedCurses.indexOf(id);
-  const chk = document.getElementById('curse-chk-' + id);
-  if (idx === -1) {
-    if (selectedCurses.length >= 2) return; // 최대 2개
-    selectedCurses.push(id);
-    el.classList.add('selected');
-    chk.textContent = '☑';
-  } else {
-    selectedCurses.splice(idx, 1);
-    el.classList.remove('selected');
-    chk.textContent = '□';
-  }
-}
-
-function startRunWithCurses(skip) {
-  activeCurses = new Set(skip ? [] : selectedCurses);
-  runConsumables = [];
-  consumeEffects = { timeStop: 0, chainSurge: 0 };
-  curseGuaranteeRare = false;
-  chaosCurseTimer = 25000;
-  runState._devilDeal = false;
-  const prog = getRunProg(); prog.totalRuns++; saveRunProg(prog);
-  startNode(0, 0);
-  // 저주 보상 적용 (startNode 이후이므로 char/sGold 초기화 완료 상태)
-  for (const curseId of activeCurses) {
-    const curse = CURSE_DEFS.find(c => c.id === curseId);
-    if (curse) curse.rewardFn();
-  }
 }
 
 // ── 보스 이벤트 화면 ─────────────────────────────────────────────
@@ -1638,14 +1533,6 @@ const GIMMICK_DESCS = {
   time_pressure: ['⏰', '시간 압박', '제한 시간 내 목표 콤보 달성 필요'],
 };
 
-const CURSE_SHORT = {
-  fast_drain:  ['🩸', '피의 저주', 'HP 드레인 +30%'],
-  steel_storm: ['⚙️', '강철 폭풍', '강철 블록 2배 빠르게 등장'],
-  hp_curse:    ['💔', '약한 심장', '최대 HP -30%'],
-  slow_heal:   ['🤕', '더딘 회복', '블록 회복량 -30%'],
-  chaos_curse: ['🌀', '혼돈의 저주', '매 25초마다 지진 발생'],
-};
-
 function showNodeIntro() {
   const nc = nodeConfig;
   const actLabel = ACT_LABELS[runState.act] || ('Act ' + (runState.act + 1));
@@ -1674,25 +1561,6 @@ function showNodeIntro() {
         </div>
       </div>`;
     }).join('');
-  }
-
-  // 활성 저주 목록
-  const cList = document.getElementById('si-curse-list');
-  if (activeCurses.size === 0) {
-    cList.innerHTML = '';
-  } else {
-    cList.innerHTML = '<div style="font-size:10px;color:#ff5555;font-weight:700;letter-spacing:1px;text-align:center;margin-top:4px">⚠️ 활성 저주</div>' +
-      [...activeCurses].map(id => {
-        const d = CURSE_SHORT[id];
-        if (!d) return '';
-        return `<div style="display:flex;align-items:center;gap:8px;background:rgba(255,60,60,0.06);border:1px solid rgba(255,60,60,0.2);border-radius:8px;padding:6px 10px">
-          <span style="font-size:16px">${d[0]}</span>
-          <div>
-            <span style="font-size:12px;font-weight:700;color:#ff8888">${d[1]}</span>
-            <span style="font-size:11px;color:#aa7777;margin-left:6px">${d[2]}</span>
-          </div>
-        </div>`;
-      }).join('');
   }
 
   showScreen('si');
@@ -2817,7 +2685,7 @@ function loop(ts) {
     if (steelSpawnTimer <= 0) {
       spawnSteel();
       const baseInterval = nodeConfig.steelMs || 20000;
-      steelSpawnTimer = baseInterval * (activeCurses.has('steel_storm') ? 0.5 : 1);
+      steelSpawnTimer = baseInterval;
     }
 
     // 시한폭탄 블럭 스폰 타이머
@@ -2840,11 +2708,6 @@ function loop(ts) {
     // 소모품: 시간 정지 — 드레인 카운트다운
     if (consumeEffects.timeStop > 0) consumeEffects.timeStop -= raw;
 
-    // 저주: 혼돈의 저주 — 25초마다 지진
-    if (activeCurses.has('chaos_curse')) {
-      chaosCurseTimer -= raw;
-      if (chaosCurseTimer <= 0) { chaosCurseTimer = 25000; earthquakePending = true; triggerEarthquake(); }
-    }
 
     const pulseMult  = (hyperPulseActive ? 2.0 : 1.0) * (drainStormActive ? 2.0 : 1.0);
     let drainMultFinal = char.drainMult * pulseMult;
@@ -3101,7 +2964,10 @@ function safeTimeout(fn, ms) {
 // ── 런/노드 플로우 ──────────────────────────────────────
 function startRun() {
   runState = { act: 0, node: 0, artifacts: [], _devilDeal: false };
-  showCurseScreen();
+  runConsumables = [];
+  consumeEffects = { timeStop: 0, chainSurge: 0 };
+  const prog = getRunProg(); prog.totalRuns++; saveRunProg(prog);
+  startNode(0, 0);
 }
 
 function startNode(act, nodeIdx) {
@@ -3116,11 +2982,10 @@ function startNode(act, nodeIdx) {
   sDestroyed = { red: 0, blue: 0, yellow: 0, green: 0, purple: 0 };
   colorCount = nodeConfig.colors || 3; COLORS = ALL_COLORS.slice(0, colorCount);
   isHyper = false; hyperPulseTimer = 0; hyperPulseActive = false; hyperPulseRemain = 0;
-  steelSpawnTimer = (nodeConfig.steelMs || 20000) * (activeCurses.has('steel_storm') ? 0.5 : 1);
+  steelSpawnTimer = nodeConfig.steelMs || 20000;
   timebombSpawnTimer = (nodeConfig.steelMs || 20000) * 1.8;
   slowFactor = 1.0; lastTS = 0; locked = false;
   consumeEffects = { timeStop: 0, chainSurge: 0 };
-  chaosCurseTimer = 25000;
   particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
 
@@ -3207,9 +3072,7 @@ function nodeCleared() {
 }
 
 function getArtifactChoices(pool) {
-  // 저주 보상: hp_curse → 첫 선택에서 희귀 보장
   let effectivePool = pool;
-  if (curseGuaranteeRare && effectivePool === 'common') { effectivePool = 'rare'; curseGuaranteeRare = false; }
   // 보스 악마 딜 수락 → 다음 선택 희귀/전설 포함
   if (runState._devilDeal) { if (effectivePool !== 'legendary') effectivePool = 'rare'; runState._devilDeal = false; }
   const rarities = effectivePool === 'common'    ? ['common']
