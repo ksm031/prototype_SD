@@ -242,9 +242,11 @@ const COLS = 6, ROWS = 7, CELL = 50;
 const GX = (AW - COLS * CELL) / 2;   // grid offset X = 40
 const GY = 64;                         // grid offset Y
 const ALL_COLORS = ['red', 'blue', 'yellow', 'green', 'purple'];
-const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#e05c00', steel: '#5a6473' };
-const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#8b3900', steel: '#2e3440' };
-const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#ffaa55', steel: '#aab4c2' };
+const BCOLOR = { red: '#e74c3c', blue: '#3498db', yellow: '#f1c40f', green: '#2ecc71', purple: '#9b59b6', legendary: '#f0c040', firework: '#ff7f2a', bomb: '#e05c00', steel: '#5a6473', rot: '#2d7a2d', shield: '#2e6ba0' };
+const BDARK  = { red: '#922b21', blue: '#1a5276', yellow: '#9a7d0a', green: '#1a7a43', purple: '#5b2c6f', legendary: '#a07010', firework: '#b35000', bomb: '#8b3900', steel: '#2e3440', rot: '#1a4a1a', shield: '#1a3d5c' };
+const BRIGHT = { red: '#f1948a', blue: '#7fb3d3', yellow: '#f9e79f', green: '#a9dfbf', purple: '#d2b4de', legendary: '#fffacc', firework: '#ffb87a', bomb: '#ffaa55', steel: '#aab4c2', rot: '#5db85d', shield: '#60aadd' };
+const BGRAY  = { red: '#9a9a9a', blue: '#cccccc', yellow: '#e8e8e8', green: '#b5b5b5', purple: '#777777', legendary: '#d4d4d4', firework: '#aaaaaa', bomb: '#888888', steel: '#5a6473', rot: '#999999', shield: '#aaaaaa' };
+const COLOR_SHAPE = { red: '♦', blue: '●', yellow: '★', green: '▲', purple: '■' };
 
 let colorCount = 3;
 let COLORS = ALL_COLORS.slice(0, colorCount);
@@ -494,23 +496,36 @@ const NODE_DEFS = [
   // ACT 1
   [
     { label:'1-1',    type:'normal', clearSec:60,  drainMult:1.0, steelMult:1.0, hyperStart:180, pool:'common'  },
-    { label:'1-2',    type:'normal', clearSec:75,  drainMult:1.0, steelMult:1.1, hyperStart:180, pool:'common'  },
-    { label:'1-3',    type:'normal', clearSec:90,  drainMult:1.0, steelMult:1.2, hyperStart:180, pool:'common'  },
-    { label:'1-BOSS', type:'boss',   clearSec:120, drainMult:1.2, steelMult:2.0, hyperStart:180, pool:'rare'    },
+    { label:'1-2',    type:'normal', clearSec:75,  drainMult:1.0, steelMult:1.1, hyperStart:180, pool:'common',
+      gimmicks:['mirror'] },
+    { label:'1-3',    type:'normal', clearSec:90,  drainMult:1.0, steelMult:1.2, hyperStart:180, pool:'common',
+      gimmicks:['ice', 'drain_storm'] },
+    { label:'1-BOSS', type:'boss',   clearSec:120, drainMult:1.2, steelMult:2.0, hyperStart:180, pool:'rare',
+      gimmicks:['petrified'],
+      timePressure:{ combo:10, interval:25000 } },
   ],
   // ACT 2
   [
-    { label:'2-1',    type:'normal', clearSec:90,  drainMult:1.2, steelMult:1.3, hyperStart:180, pool:'common'  },
-    { label:'2-2',    type:'normal', clearSec:100, drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'common'  },
-    { label:'2-3',    type:'elite',  clearSec:90,  drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'rare', fastPulse:true },
-    { label:'2-BOSS', type:'boss',   clearSec:150, drainMult:1.5, steelMult:2.0, hyperStart:100, pool:'rare'    },
+    { label:'2-1',    type:'normal', clearSec:90,  drainMult:1.2, steelMult:1.3, hyperStart:180, pool:'common',
+      gimmicks:['split', 'fog'] },
+    { label:'2-2',    type:'normal', clearSec:100, drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'common',
+      gimmicks:['shield', 'darkzone'] },
+    { label:'2-3',    type:'elite',  clearSec:90,  drainMult:1.3, steelMult:1.4, hyperStart:180, pool:'rare', fastPulse:true,
+      gimmicks:['rot', 'mirror', 'colorblind'] },
+    { label:'2-BOSS', type:'boss',   clearSec:150, drainMult:1.5, steelMult:2.0, hyperStart:100, pool:'rare',
+      gimmicks:['reverse_chain', 'earthquake', 'petrified'] },
   ],
   // ACT 3
   [
-    { label:'3-1',    type:'normal', clearSec:100, drainMult:1.5, steelMult:1.5, hyperStart:180, pool:'common'  },
-    { label:'3-2',    type:'elite',  clearSec:110, drainMult:1.6, steelMult:1.6, hyperStart:180, pool:'rare'    },
-    { label:'3-3',    type:'elite',  clearSec:120, drainMult:1.7, steelMult:1.7, hyperStart:180, pool:'rare'    },
-    { label:'FINAL',  type:'final',  clearSec:180, drainMult:2.0, steelMult:2.5, hyperStart:90,  pool:'legendary'},
+    { label:'3-1',    type:'normal', clearSec:100, drainMult:1.5, steelMult:1.5, hyperStart:180, pool:'common',
+      gimmicks:['block_lock', 'revive', 'split'] },
+    { label:'3-2',    type:'elite',  clearSec:110, drainMult:1.6, steelMult:1.6, hyperStart:180, pool:'rare',
+      gimmicks:['colorblind', 'ice', 'shield', 'rot'] },
+    { label:'3-3',    type:'elite',  clearSec:120, drainMult:1.7, steelMult:1.7, hyperStart:180, pool:'rare',
+      gimmicks:['drain_storm', 'darkzone', 'mirror', 'earthquake'] },
+    { label:'FINAL',  type:'final',  clearSec:180, drainMult:2.0, steelMult:2.5, hyperStart:90,  pool:'legendary',
+      gimmicks:['reverse_chain', 'fog', 'petrified', 'revive', 'drain_storm', 'earthquake'],
+      timePressure:{ combo:15, interval:22000 } },
   ],
 ];
 
@@ -678,6 +693,46 @@ let steelSpawnTimer = 0; // ms until next steel block spawn
 let timebombSpawnTimer = 0; // ms until next timebomb block spawn
 const TIMEBOMB_INTERVALS = [45000, 35000, 25000, 15000]; // per phase
 const TIMEBOMB_FUSE = 8000; // ms before explosion
+
+// ── 기믹 상수 ──────────────────────────────────────────────
+const GIMMICK_SPAWN_INTERVALS = {
+  ice:       [30000, 22000, 15000, 10000],
+  split:     [35000, 25000, 18000, 12000],
+  mirror:    [28000, 20000, 14000, 10000],
+  petrified: [25000, 18000, 12000,  8000],
+  shield:    [40000, 30000, 22000, 15000],
+  rot:       [50000, 38000, 28000, 18000],
+  revive:    [45000, 33000, 24000, 16000],
+};
+const DRAIN_STORM_ACTIVE_MS  = 5000;
+const DRAIN_STORM_COOLDOWN   = 5000;
+const EARTHQUAKE_INTERVAL    = 18000;
+const ROT_SPREAD_INTERVAL    = 10000;
+const REVIVE_DELAY           = 15000;
+const BLOCK_LOCK_DURATION    = 12000;
+const BLOCK_LOCK_COOLDOWN    = 20000;
+
+// ── 기믹 상태 ──────────────────────────────────────────────
+let stageGimmicks      = new Set();   // 현재 노드 활성 기믹 IDs
+let gimmickSpawnTimers = {};           // {type → ms until next spawn}
+let drainStormTimer    = 0;
+let drainStormActive   = false;
+let drainStormRemain   = 0;
+let earthquakeTimer    = 0;
+let rotUpdateTimer     = 0;
+let reviveQueue        = [];           // [{r,c,color,timer}]
+let blockLockActive    = false;
+let blockLockRect      = null;         // {r1,c1,r2,c2}
+let blockLockCycle     = 0;
+let darkZoneRect       = null;         // {r1,c1,r2,c2}
+let darkRevealCell     = null;
+let darkRevealTimer    = 0;
+let timePressureActive     = false;
+let timePressureTimer      = 0;
+let timePressureCombo      = 0;
+let timePressureTarget     = 0;
+let timePressureInterval   = 30000;
+let timePressureIntervalTimer = 0;
 let targetChainId = -1;  // 탭 시 강조할 체인 ID
 let pendingTimers = new Set();
 
@@ -783,7 +838,7 @@ function bfs(sr, sc, id, vis) {
     if (vis[r][c]) continue;
     vis[r][c] = true;
     grid[r][c].chainId = id;
-    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel) continue; // legendary/item/steel은 혼자만 체인
+    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel || grid[r][c].ice || grid[r][c].rot || grid[r][c].shield) continue; // 특수 블록은 혼자만 체인
     for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
       if (inB(nr, nc) && !vis[nr][nc] && grid[nr][nc]?.color === color)
         q.push([nr, nc]);
@@ -801,52 +856,112 @@ function getChain(id) {
 
 function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
 
-function removeBlock(r, c) {
-  if (!grid[r][c]) return;
+// byExplosion=true 시 강철/얼음도 파괴 가능. 반환값: true=파괴됨, false=면역/거부
+function removeBlock(r, c, byExplosion) {
+  if (!grid[r][c]) return false;
   const blk = grid[r][c];
   const color = blk.color;
+  const bx = GX + c * CELL + CELL / 2, by = GY + r * CELL;
+
+  // 보호막: 인접 shield 블록이 있으면 면역 (shield 본체는 예외)
+  if (!blk.shield && isProtectedByShield(r, c)) {
+    ripples.push({ x: bx, y: by + CELL / 2, rad: CELL * 0.4, life: 0.6 });
+    popup(bx, by - 4, '🛡', '#88aaff');
+    return false;
+  }
+
+  // 강철 블록
   if (blk.steel) {
-    if (char.steelBreaker) {
-      // 강철 분쇄기 아티팩트: 일반 블록처럼 처리
+    if (char.steelBreaker || byExplosion) {
       burstParticles(r, c, '#aab4c2');
-      if (sDestroyed) sDestroyed.red = (sDestroyed.red || 0); // count in generic sBlocks
       grid[r][c] = null;
-      return;
+      return true;
     }
-    // 강철 블럭은 일반 공격 면역 — 클랭 이펙트만
-    ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.4, life: 0.6 });
+    ripples.push({ x: bx, y: by + CELL / 2, rad: CELL * 0.4, life: 0.6 });
     shake(3, 4);
-    popup(GX + c * CELL + CELL / 2, GY + r * CELL - 4, '🔒', '#aab4c2');
-    return;
+    popup(bx, by - 4, '🔒', '#aab4c2');
+    return false;
   }
+
+  // 얼음 블록: 폭발/불꽃만 파괴 가능
+  if (blk.ice && !byExplosion) {
+    ripples.push({ x: bx, y: by + CELL / 2, rad: CELL * 0.4, life: 0.6 });
+    popup(bx, by - 4, '🧊', '#88ccff');
+    return false;
+  }
+
+  // 석화 블록: HP 2→1 (금 간 상태), 두 번째 타격에 파괴
+  if (blk.petrified && blk.hp > 1) {
+    blk.hp = 1;
+    blk.cracked = true;
+    shake(2, 3);
+    burstParticles(r, c, '#cc9955');
+    popup(bx, by - 4, '💥', '#cc9955');
+    return false;
+  }
+
+  // ── 실제 파괴 ──
   burstParticles(r, c, BCOLOR[color] || '#ffffff');
-  if (blk.item === 'firework') {
-    grid[r][c] = null;
-    triggerFirework(r, c);
-    return;
+
+  // 얼음 파괴 시 화면 2초 느려짐
+  if (blk.ice) {
+    slowFactor = 0.4;
+    safeTimeout(() => { if (gstate === 'playing') slowFactor = 1.0; }, 2000);
+    bigPopup('❄️ FREEZE!', '#88ccff');
   }
-  if (blk.item === 'bomb') {
-    grid[r][c] = null;
-    triggerBomb(r, c);
-    return;
+
+  // 분열: 파괴 시 인접 빈 칸에 랜덤 블록 2개 생성
+  if (blk.split) {
+    const empties = [];
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (inB(nr, nc) && !grid[nr][nc]) empties.push([nr, nc]);
+    }
+    empties.sort(() => Math.random() - 0.5);
+    for (let i = 0; i < Math.min(2, empties.length); i++) {
+      const [nr, nc] = empties[i];
+      grid[nr][nc] = mkBlock(COLORS[Math.floor(Math.random() * COLORS.length)]);
+      grid[nr][nc].animY = GY + nr * CELL;
+    }
+    popup(bx, by - 4, '🔀 SPLIT', '#ff88cc', true);
   }
+
+  // 부활: 15초 후 같은 위치에 부활
+  if (blk.revive) {
+    reviveQueue.push({ r, c, color: blk.origColor || color, timer: REVIVE_DELAY });
+    popup(bx, by - 4, '💀 +15s', '#cc44ff');
+  }
+
+  // 아이템 블록
+  if (blk.item === 'firework') { grid[r][c] = null; triggerFirework(r, c); return true; }
+  if (blk.item === 'bomb')     { grid[r][c] = null; triggerBomb(r, c);     return true; }
+
+  // 전설 블록
   if (color === 'legendary') {
     const bonus = (char && char.legendMatBonus) ? char.legendMatBonus : 0;
     const rareGain = 1 + bonus;
     const m = getMats(); m.rare = (m.rare || 0) + rareGain; saveMats(m);
     const prog = getRunProg(); prog.lifetimeLegendary++; saveRunProg(prog);
-    spawnStarBurst(GX + c * CELL + CELL / 2, GY + r * CELL + CELL / 2);
-    popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL, text: '⭐ +' + rareGain, color: '#ffe066', life: 1.0, vy: -1.8, big: true });
-    // crystal_shard: 전설 파괴 시 HP +10% 즉시 회복
+    spawnStarBurst(bx, by + CELL / 2);
+    popups.push({ x: bx, y: by, text: '⭐ +' + rareGain, color: '#ffe066', life: 1.0, vy: -1.8, big: true });
     if (char && char.legendHeal > 0) {
       const healAmt = Math.round(char.maxHp * char.legendHeal);
       char.hp = Math.min(char.maxHp, char.hp + healAmt);
-      popups.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL - 20, text: '💎 +' + healAmt + 'HP', color: '#88eeff', life: 1.0, vy: -1.5, big: false });
+      popups.push({ x: bx, y: by - 20, text: '💎 +' + healAmt + 'HP', color: '#88eeff', life: 1.0, vy: -1.5, big: false });
     }
   } else if (sDestroyed[color] !== undefined) {
     sDestroyed[color]++;
   }
   grid[r][c] = null;
+  return true;
+}
+
+function isProtectedByShield(r, c) {
+  for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const nr = r + dr, nc = c + dc;
+    if (inB(nr, nc) && grid[nr][nc]?.shield) return true;
+  }
+  return false;
 }
 
 function gravity() {
@@ -1063,8 +1178,9 @@ function startEat(r, c) {
 }
 
 function byDist(blocks, sr, sc) {
+  const sign = stageGimmicks.has('reverse_chain') ? -1 : 1;
   return [...blocks].sort((a, b) =>
-    (Math.abs(a.r - sr) + Math.abs(a.c - sc)) - (Math.abs(b.r - sr) + Math.abs(b.c - sc))
+    sign * ((Math.abs(a.r - sr) + Math.abs(a.c - sc)) - (Math.abs(b.r - sr) + Math.abs(b.c - sc)))
   );
 }
 
@@ -1100,12 +1216,15 @@ function runChain(chainBlocks, sr, sc) {
       // Phase 3: 체인 주변 인접 블록 한꺼번에 처리
       for (const { r, c } of waveMap.values()) {
         if (!grid[r][c]) continue;
+        const wBlk = grid[r][c];
+        const wMirror = !!wBlk.mirror;
         ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: 4, life: 0.8 });
-        removeBlock(r, c);
-        healFromBlock(chainSize);
+        if (!removeBlock(r, c)) continue;
+        if (!wMirror) healFromBlock(chainSize);
         combo++;
         sBlocks++;
-        sGold += Math.round(char.goldPerBlock * char.goldMult);
+        sGold += Math.round(char.goldPerBlock * char.goldMult * (wMirror ? 2 : 1));
+        if (timePressureActive) timePressureCombo++;
       }
       finishChain(combo);
       return;
@@ -1114,12 +1233,17 @@ function runChain(chainBlocks, sr, sc) {
     // Phase 1 & 2: 선택 블록 → 도미노 확산
     const { r, c } = ordered.shift();
     if (!grid[r][c]) return;
-    removeBlock(r, c);
-    healFromBlock(chainSize);
+    const blkRef = grid[r][c];
+    const isMirror = !!blkRef.mirror;
+    const destroyed = removeBlock(r, c);
+    if (!destroyed) return; // 석화 1차 히트 등 – 콤보 카운트 안 함
+    if (!isMirror) healFromBlock(chainSize); // 미러: HP 회복 없음
     combo++;
     sBlocks++;
-    sGold += Math.round(char.goldPerBlock * char.goldMult);
-    shake(2, 3);  // 블록 팝마다 약한 진동
+    // 미러: 골드 ×2, 시간압박 콤보 누적
+    sGold += Math.round(char.goldPerBlock * char.goldMult * (isMirror ? 2 : 1));
+    if (timePressureActive) timePressureCombo++;
+    shake(2, 3);
     haptic(8);
     ripples.push({ x: GX + c * CELL + CELL / 2, y: GY + r * CELL + CELL / 2, rad: CELL * 0.25, life: 1.0 });
 
@@ -1128,6 +1252,7 @@ function runChain(chainBlocks, sr, sc) {
       for (let i = 1; i <= char.impactRange; i++) {
         const nr = r + dr*i, nc = c + dc*i;
         if (!inB(nr, nc) || !grid[nr][nc]) break;
+        if (isProtectedByShield(nr, nc) && !grid[nr][nc].shield) break; // 보호막 차단
         const key = nr * COLS + nc;
         if (!chainSet.has(key)) waveMap.set(key, { r: nr, c: nc });
       }
@@ -1198,15 +1323,104 @@ function explodeTimebomb(r, c) {
 }
 
 // ═══════════════════════════════════════
+//  GIMMICK BLOCK SPAWNS
+// ═══════════════════════════════════════
+const GIMMICK_ICONS = { ice:'🧊', split:'🔀', mirror:'🪞', petrified:'🗿', shield:'🛡', rot:'🦠', revive:'💀' };
+const GIMMICK_CLRS  = { ice:'#88ccff', split:'#ff88cc', mirror:'#aaccff', petrified:'#cc9955', shield:'#60aadd', rot:'#44bb44', revive:'#cc44ff' };
+
+function spawnGimmickBlock(type) {
+  const candidates = [];
+  for (let r = 1; r < ROWS - 1; r++)
+    for (let c = 0; c < COLS; c++) {
+      const b = grid[r][c];
+      if (b && !b.steel && !b.item && !b.timebomb && !b.ice && !b.split && !b.mirror &&
+          !b.petrified && !b.shield && !b.rot && !b.revive && b.color !== 'legendary')
+        candidates.push({ r, c });
+    }
+  if (!candidates.length) return;
+  const { r, c } = candidates[Math.floor(Math.random() * candidates.length)];
+  const prev = grid[r][c];
+  const origColor = prev.color;
+
+  const newBlk = {
+    color:     type === 'rot' ? 'rot' : type === 'shield' ? 'shield' : origColor,
+    origColor: origColor,
+    [type]:    true,
+    chainId:   -1,
+    hp:        type === 'petrified' ? 2 : 1,
+    animY:     prev.animY,
+    fallV:     0,
+  };
+  if (type === 'rot') newBlk.rotTimer = ROT_SPREAD_INTERVAL;
+
+  grid[r][c] = newBlk;
+  buildChains();
+  popup(GX + c * CELL + CELL / 2, GY + r * CELL - 8, GIMMICK_ICONS[type], GIMMICK_CLRS[type], true);
+}
+
+function spreadRot() {
+  const rotCells = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c]?.rot) rotCells.push({ r, c });
+
+  for (const { r, c } of rotCells) {
+    const neighbors = [[-1,0],[1,0],[0,-1],[0,1]].map(([dr,dc])=>[r+dr,c+dc])
+      .filter(([nr,nc]) => inB(nr,nc) && grid[nr][nc] && !grid[nr][nc].steel &&
+              !grid[nr][nc].rot && !grid[nr][nc].ice && !grid[nr][nc].item &&
+              !grid[nr][nc].shield && grid[nr][nc].color !== 'legendary');
+    if (!neighbors.length) continue;
+    const [nr, nc] = neighbors[Math.floor(Math.random() * neighbors.length)];
+    const prev = grid[nr][nc];
+    grid[nr][nc] = { color: 'rot', origColor: prev.color, rot: true, chainId: -1,
+                     hp: 1, rotTimer: ROT_SPREAD_INTERVAL, animY: prev.animY, fallV: 0 };
+    popup(GX + nc * CELL + CELL / 2, GY + nr * CELL - 4, '🦠', '#44bb44');
+  }
+  buildChains();
+}
+
+function triggerEarthquake() {
+  shake(14, 28);
+  bigPopup('🌋 QUAKE!', '#ff8844');
+  haptic([30, 10, 50, 10, 30]);
+  // 비특수 블록 위치 셔플
+  const movable = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const b = grid[r][c];
+      if (b && !b.steel && !b.item && !b.timebomb) movable.push({ r, c, blk: b });
+    }
+  const positions = movable.map(m => ({ r: m.r, c: m.c }));
+  positions.sort(() => Math.random() - 0.5);
+  for (let i = 0; i < movable.length; i++) {
+    const { r, c } = positions[i];
+    grid[r][c] = movable[i].blk;
+    grid[r][c].animY = GY + movable[i].r * CELL; // 원래 위치에서 낙하 시작
+    grid[r][c].fallV = 0;
+  }
+  buildChains();
+}
+
+function pickLockRect() {
+  const r1 = 1 + Math.floor(Math.random() * (ROWS - 3));
+  const c1 = Math.floor(Math.random() * (COLS - 2));
+  return { r1, c1, r2: Math.min(ROWS - 1, r1 + 2), c2: Math.min(COLS - 1, c1 + 2) };
+}
+
+function pickDarkZone() {
+  const r1 = 1 + Math.floor(Math.random() * (ROWS - 3));
+  const c1 = Math.floor(Math.random() * (COLS - 2));
+  return { r1, c1, r2: Math.min(ROWS - 1, r1 + 2), c2: Math.min(COLS - 1, c1 + 2) };
+}
+
+// ═══════════════════════════════════════
 //  ITEM BLOCKS
 // ═══════════════════════════════════════
 function clearCells(cells, color) {
   let destroyed = 0;
   for (const [r, c] of cells) {
     if (!inB(r, c) || !grid[r][c]) continue;
-    burstParticles(r, c, color);
-    grid[r][c] = null;
-    destroyed++;
+    if (removeBlock(r, c, true)) destroyed++;
   }
   return destroyed;
 }
@@ -1547,6 +1761,29 @@ function drawHUD() {
   ctx.textAlign = 'right';
   ctx.fillText(sGold + ' G', AW - BAR_X, 44);
 
+  // 기믹 상태 표시 (HUD 하단 행 위)
+  const activeGimmickLabels = [];
+  if (stageGimmicks.has('colorblind'))    activeGimmickLabels.push('🎨');
+  if (stageGimmicks.has('fog'))           activeGimmickLabels.push('🌫️');
+  if (stageGimmicks.has('darkzone'))      activeGimmickLabels.push('🌑');
+  if (stageGimmicks.has('reverse_chain')) activeGimmickLabels.push('🔃');
+  if (stageGimmicks.has('earthquake'))    activeGimmickLabels.push(`🌋${Math.ceil((EARTHQUAKE_INTERVAL - earthquakeTimer) / 1000)}s`);
+  if (drainStormActive)                   activeGimmickLabels.push(`🌪️${Math.ceil(drainStormRemain / 1000)}s`);
+  else if (stageGimmicks.has('drain_storm')) activeGimmickLabels.push(`🌪️`);
+  if (blockLockActive)                    activeGimmickLabels.push(`🔐${Math.ceil((BLOCK_LOCK_DURATION - blockLockCycle) / 1000)}s`);
+  if (timePressureActive)                 activeGimmickLabels.push(`⏰${Math.ceil(timePressureTimer / 1000)}s ${timePressureCombo}/${timePressureTarget}`);
+
+  if (activeGimmickLabels.length > 0) {
+    const STRIP_Y2 = AH - 38;
+    ctx.fillStyle = 'rgba(10,10,22,0.70)';
+    ctx.fillRect(0, STRIP_Y2 - 2, AW, 16);
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ff8844';
+    ctx.fillText(activeGimmickLabels.join('  '), AW / 2, STRIP_Y2 + 6);
+  }
+
   // 아티팩트 아이콘 스트립 (하단, 그리드 아래)
   if (runState.artifacts.length > 0) {
     const STRIP_Y = AH - 22;
@@ -1646,9 +1883,10 @@ function drawGrid() {
 
       const x  = GX + c * CELL;
       const y  = blkY(r, c);
-      const bc = BCOLOR[blk.color];
-      const bd = BDARK[blk.color];
-      const blt = BRIGHT[blk.color];
+      const useGray = stageGimmicks.has('colorblind') && !blk.steel && !blk.item;
+      const bc = (useGray ? BGRAY : BCOLOR)[blk.color] || BCOLOR[blk.color];
+      const bd = (useGray ? BGRAY : BDARK)[blk.color]  || BDARK[blk.color];
+      const blt = (useGray ? BGRAY : BRIGHT)[blk.color] || BRIGHT[blk.color];
       const chained = (csz[blk.chainId] || 0) >= 2;
 
       const hasT = sameChain(r, c, r-1, c);
@@ -1725,6 +1963,129 @@ function drawGrid() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('⚙️', x + CELL / 2, y + CELL / 2);
+        ctx.restore();
+      }
+
+      // 색맹 모드: 블록 위에 컬러 도형 아이콘 오버레이
+      if (stageGimmicks.has('colorblind') && !blk.steel && !blk.item && !blk.rot && !blk.shield) {
+        const shape = COLOR_SHAPE[color];
+        if (shape) {
+          ctx.save();
+          ctx.font = 'bold 18px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = 0.85;
+          ctx.fillText(shape, x + CELL / 2, y + CELL / 2);
+          ctx.restore();
+        }
+      }
+
+      // 얼음 블록 — 파란 테두리 + 아이콘
+      if (blk.ice) {
+        ctx.save();
+        ctx.strokeStyle = '#88ccff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#88ccff';
+        ctx.shadowBlur = 10 + 4 * Math.sin(now / 400);
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🧊', x + CELL / 2, y + CELL / 2 - 1);
+        ctx.restore();
+      }
+
+      // 분열 블록 — 핑크 테두리 + 아이콘
+      if (blk.split) {
+        ctx.save();
+        ctx.strokeStyle = '#ff88cc';
+        ctx.lineWidth = 2.5;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🔀', x + CELL / 2, y + CELL / 2 - 1);
+        ctx.restore();
+      }
+
+      // 미러 블록 — 하늘색 테두리 + 아이콘
+      if (blk.mirror) {
+        ctx.save();
+        ctx.strokeStyle = '#aaccff';
+        ctx.lineWidth = 2.5;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🪞', x + CELL / 2, y + CELL / 2 - 1);
+        ctx.restore();
+      }
+
+      // 석화 블록 — 갈색 테두리 + 금 아이콘 + 균열
+      if (blk.petrified) {
+        ctx.save();
+        ctx.strokeStyle = blk.cracked ? '#ff8844' : '#cc9955';
+        ctx.lineWidth = blk.cracked ? 3 : 2;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(blk.cracked ? '🪨' : '🗿', x + CELL / 2, y + CELL / 2 - 1);
+        if (blk.cracked) {
+          ctx.fillStyle = '#ff8844';
+          ctx.font = 'bold 9px system-ui';
+          ctx.fillText('HP1', x + CELL / 2, y + CELL - PAD - 5);
+        }
+        ctx.restore();
+      }
+
+      // 부패 블록 — 초록 맥동 테두리 + 아이콘 (color='rot')
+      if (blk.rot) {
+        const rpulse = 0.5 + 0.4 * Math.sin(now / 500);
+        ctx.save();
+        ctx.shadowColor = '#44bb44';
+        ctx.shadowBlur = 8 + rpulse * 8;
+        ctx.strokeStyle = `rgba(68,187,68,${0.6 + rpulse * 0.4})`;
+        ctx.lineWidth = 2.5;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🦠', x + CELL / 2, y + CELL / 2 - 1);
+        ctx.restore();
+      }
+
+      // 보호막 블록 — 파란 글로우 + 아이콘
+      if (blk.shield) {
+        const sp = 0.4 + 0.4 * Math.sin(now / 380);
+        ctx.save();
+        ctx.shadowColor = '#60aadd';
+        ctx.shadowBlur = 12 + sp * 10;
+        ctx.strokeStyle = `rgba(96,170,221,${0.6 + sp * 0.4})`;
+        ctx.lineWidth = 3;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🛡', x + CELL / 2, y + CELL / 2 - 1);
+        ctx.restore();
+      }
+
+      // 부활 블록 — 보라 테두리 + 아이콘
+      if (blk.revive) {
+        const rvp = 0.5 + 0.4 * Math.sin(now / 600);
+        ctx.save();
+        ctx.strokeStyle = `rgba(200,68,255,${0.6 + rvp * 0.4})`;
+        ctx.lineWidth = 2.5;
+        rRect(x + PAD, y + PAD, CELL - PAD*2, CELL - PAD*2, radii);
+        ctx.stroke();
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('💀', x + CELL / 2, y + CELL / 2 - 1);
         ctx.restore();
       }
 
@@ -1808,6 +2169,94 @@ function drawGrid() {
         ctx.restore();
       }
     }
+  }
+
+  // ── Pass 5: 스테이지 기믹 오버레이 ──
+
+  // 안개: 블록을 흐릿하게 표시 (화면 전체 반투명 레이어)
+  if (stageGimmicks.has('fog')) {
+    ctx.save();
+    ctx.fillStyle = `rgba(20,20,50,${0.35 + 0.1 * Math.sin(now / 2000)})`;
+    ctx.fillRect(GX - 2, GY - 2, COLS * CELL + 4, ROWS * CELL + 4);
+    // 안개 느낌 노이즈 세줄
+    ctx.fillStyle = 'rgba(180,190,255,0.06)';
+    for (let i = 0; i < 3; i++) {
+      const fy = GY + (((now / 800 + i * 2.3) % ROWS)) * CELL;
+      ctx.fillRect(GX, fy, COLS * CELL, 8);
+    }
+    ctx.restore();
+  }
+
+  // 어둠 구역: 특정 영역 완전히 가림
+  if (darkZoneRect) {
+    const { r1, c1, r2, c2 } = darkZoneRect;
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,5,18,0.92)';
+    ctx.fillRect(GX + c1 * CELL, GY + r1 * CELL,
+                 (c2 - c1 + 1) * CELL, (r2 - r1 + 1) * CELL);
+    // 잠금 아이콘
+    ctx.font = 'bold 20px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(100,100,180,0.6)';
+    ctx.fillText('🌑', GX + (c1 + (c2 - c1) / 2 + 0.5) * CELL,
+                 GY + (r1 + (r2 - r1) / 2 + 0.5) * CELL);
+    // 탭 시 잠깐 보이는 셀 표시
+    if (darkRevealCell) {
+      const { r: rr, c: cc } = darkRevealCell;
+      if (rr >= r1 && rr <= r2 && cc >= c1 && cc <= c2) {
+        const blk = grid[rr][cc];
+        if (blk) {
+          const rc = BCOLOR[blk.color] || '#888';
+          ctx.globalAlpha = (darkRevealTimer / 800) * 0.9;
+          ctx.fillStyle = rc;
+          rRect(GX + cc * CELL + PAD, GY + rr * CELL + PAD, CELL - PAD*2, CELL - PAD*2, 8);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // 블록 잠금: 잠긴 영역 표시
+  if (blockLockActive && blockLockRect) {
+    const { r1, c1, r2, c2 } = blockLockRect;
+    const remain = BLOCK_LOCK_DURATION - blockLockCycle;
+    ctx.save();
+    ctx.fillStyle = `rgba(255,50,50,${0.12 + 0.06 * Math.sin(now / 300)})`;
+    ctx.fillRect(GX + c1 * CELL, GY + r1 * CELL,
+                 (c2 - c1 + 1) * CELL, (r2 - r1 + 1) * CELL);
+    ctx.strokeStyle = `rgba(255,80,80,0.7)`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(GX + c1 * CELL + 1, GY + r1 * CELL + 1,
+                   (c2 - c1 + 1) * CELL - 2, (r2 - r1 + 1) * CELL - 2);
+    ctx.fillStyle = '#ff5555';
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🔐 ' + Math.ceil(remain / 1000) + 's',
+                 GX + (c1 + (c2 - c1) / 2 + 0.5) * CELL,
+                 GY + (r1 + (r2 - r1) / 2 + 0.5) * CELL);
+    ctx.restore();
+  }
+
+  // 드레인 폭풍 활성 시 붉은 주변부 vignette
+  if (drainStormActive) {
+    ctx.save();
+    const grd = ctx.createRadialGradient(AW/2, AH/2, AH*0.2, AW/2, AH/2, AH*0.7);
+    grd.addColorStop(0, 'rgba(255,80,0,0)');
+    grd.addColorStop(1, `rgba(255,80,0,${0.3 + 0.15 * Math.sin(now / 100)})`);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, AW, AH);
+    ctx.restore();
+  }
+
+  // 역체인 활성 시 우상단 인디케이터
+  if (stageGimmicks.has('reverse_chain')) {
+    ctx.save();
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = '#ff8844';
+    ctx.fillText('🔃 역체인', GX + COLS * CELL - 2, GY + 2);
+    ctx.restore();
   }
 }
 
@@ -1986,7 +2435,7 @@ function loop(ts) {
         }
       }
 
-    const pulseMult  = hyperPulseActive ? 2.0 : 1.0;
+    const pulseMult  = (hyperPulseActive ? 2.0 : 1.0) * (drainStormActive ? 2.0 : 1.0);
     let drainMultFinal = char.drainMult * pulseMult;
     // 방어의 오브: HP < 30% 시 드레인 -30%
     if (char.lowHpShield && char.hp / char.maxHp < 0.30) drainMultFinal *= 0.7;
@@ -2000,7 +2449,100 @@ function loop(ts) {
       nodeCleared();
     }
 
-    // 초신성 아티팩트: 15초마다 자동 폭탄
+    // ── 기믹 블록 스폰 타이머 ──
+    for (const g of Object.keys(gimmickSpawnTimers)) {
+      gimmickSpawnTimers[g] -= raw;
+      if (gimmickSpawnTimers[g] <= 0) {
+        spawnGimmickBlock(g);
+        gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][Math.min(currentPhase, 3)];
+      }
+    }
+
+    // ── 부패 확산 ──
+    if (stageGimmicks.has('rot')) {
+      rotUpdateTimer += raw;
+      if (rotUpdateTimer >= ROT_SPREAD_INTERVAL) { rotUpdateTimer = 0; spreadRot(); }
+    }
+
+    // ── 부활 큐 ──
+    for (const rv of reviveQueue) {
+      rv.timer -= raw;
+      if (rv.timer <= 0 && !grid[rv.r][rv.c]) {
+        grid[rv.r][rv.c] = { color: rv.color, revive: true, origColor: rv.color, chainId: -1, hp: 1, animY: GY + rv.r * CELL - CELL, fallV: 0 };
+        popup(GX + rv.c * CELL + CELL / 2, GY + rv.r * CELL - 8, '💀 REVIVE', '#cc44ff', true);
+        buildChains();
+      }
+    }
+    reviveQueue = reviveQueue.filter(rv => rv.timer > 0 || !grid[rv.r]?.[rv.c]);
+
+    // ── 드레인 폭풍 ──
+    if (stageGimmicks.has('drain_storm')) {
+      if (drainStormActive) {
+        drainStormRemain -= raw;
+        if (drainStormRemain <= 0) { drainStormActive = false; drainStormTimer = 0; }
+      } else {
+        drainStormTimer += raw;
+        if (drainStormTimer >= DRAIN_STORM_COOLDOWN) {
+          drainStormActive = true; drainStormRemain = DRAIN_STORM_ACTIVE_MS;
+          bigPopup('🌪️ DRAIN STORM!', '#ff8844');
+        }
+      }
+    }
+
+    // ── 지진 ──
+    if (stageGimmicks.has('earthquake')) {
+      earthquakeTimer += raw;
+      if (earthquakeTimer >= EARTHQUAKE_INTERVAL) { earthquakeTimer = 0; triggerEarthquake(); }
+    }
+
+    // ── 블록 잠금 사이클 ──
+    if (stageGimmicks.has('block_lock')) {
+      blockLockCycle += raw;
+      if (!blockLockActive && blockLockCycle >= BLOCK_LOCK_COOLDOWN) {
+        blockLockActive = true; blockLockRect = pickLockRect(); blockLockCycle = 0;
+        bigPopup('🔐 LOCKED!', '#ff5555');
+      } else if (blockLockActive && blockLockCycle >= BLOCK_LOCK_DURATION) {
+        blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
+        bigPopup('🔓 OPEN!', '#7ec850');
+      }
+    }
+
+    // ── 어둠 구역 reveal 타이머 ──
+    if (darkRevealTimer > 0) {
+      darkRevealTimer -= raw;
+      if (darkRevealTimer <= 0) darkRevealCell = null;
+    }
+
+    // ── 시간 압박 ──
+    if (stageGimmicks.has('time_pressure') && timePressureTarget > 0) {
+      if (!timePressureActive) {
+        timePressureIntervalTimer -= raw;
+        if (timePressureIntervalTimer <= 0) {
+          timePressureActive = true;
+          timePressureTimer = 20000; // 20초 윈도우
+          timePressureCombo = 0;
+          timePressureIntervalTimer = timePressureInterval;
+          bigPopup('⏰ COMBO RUSH!', '#ff8844');
+        }
+      } else {
+        timePressureTimer -= raw;
+        if (timePressureTimer <= 0) {
+          timePressureActive = false;
+          if (timePressureCombo < timePressureTarget) {
+            const dmg = 20;
+            char.hp = Math.max(0, char.hp - dmg);
+            shake(10, 16);
+            bigPopup('⏰ FAILED! -' + dmg + 'HP', '#ff5555');
+            if (char.hp <= 0) endGame('hp');
+          } else {
+            bigPopup('⏰ CLEAR! +30G', '#7ec850');
+            sGold += 30;
+          }
+        }
+      }
+    }
+
+    // ── 초신성 아티팩트: 15초마다 자동 폭탄
     if (char.supernova && gstate === 'playing') {
       char.supernovaTimer += raw;
       if (char.supernovaTimer >= 15000) {
@@ -2041,6 +2583,21 @@ function handleTap(cx, cy) {
   const col = Math.floor((px - GX) / CELL);
   const row = Math.floor((py - GY) / CELL);
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+  // 블록 잠금: 잠긴 영역 탭 무시
+  if (blockLockActive && blockLockRect) {
+    const { r1, c1, r2, c2 } = blockLockRect;
+    if (row >= r1 && row <= r2 && col >= c1 && col <= c2) return;
+  }
+
+  // 어둠 구역: 탭 시 해당 셀 잠깐 reveal
+  if (darkZoneRect) {
+    const { r1, c1, r2, c2 } = darkZoneRect;
+    if (row >= r1 && row <= r2 && col >= c1 && col <= c2) {
+      darkRevealCell = { r: row, c: col };
+      darkRevealTimer = 800;
+    }
+  }
 
   char.tr = row; char.tc = col;
   char.tx = GX + col * CELL + CELL / 2;
@@ -2136,6 +2693,22 @@ function startNode(act, nodeIdx) {
   slowFactor = 1.0; lastTS = 0; locked = false;
   particles = []; popups = []; ripples = []; flashes = []; pendingTimers = new Set();
   shakeFr = 0; shakeAmt = 0;
+
+  // ── 기믹 초기화 ──
+  stageGimmicks = new Set(nodeConfig.gimmicks || []);
+  gimmickSpawnTimers = {};
+  for (const g of ['ice','split','mirror','petrified','shield','rot','revive']) {
+    if (stageGimmicks.has(g)) gimmickSpawnTimers[g] = GIMMICK_SPAWN_INTERVALS[g][0];
+  }
+  drainStormTimer = 0; drainStormActive = false; drainStormRemain = 0;
+  earthquakeTimer = 0; rotUpdateTimer = 0; reviveQueue = [];
+  blockLockActive = false; blockLockRect = null; blockLockCycle = 0;
+  darkZoneRect = stageGimmicks.has('darkzone') ? pickDarkZone() : null;
+  darkRevealCell = null; darkRevealTimer = 0;
+  timePressureActive = false; timePressureTimer = 0; timePressureCombo = 0;
+  timePressureTarget = nodeConfig.timePressure ? nodeConfig.timePressure.combo : 0;
+  timePressureInterval = nodeConfig.timePressure ? nodeConfig.timePressure.interval : 30000;
+  timePressureIntervalTimer = timePressureInterval;
 
   initGrid();
   initChar();
