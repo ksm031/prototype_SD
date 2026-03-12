@@ -830,6 +830,7 @@ let _pendingBossEvent = null;        // 보스 이벤트 화면 표시 후 계�
 
 // Visual fx
 let shakeFr = 0, shakeAmt = 0;
+let renderOx = 0, renderOy = 0;  // current frame shake offset (for tap correction)
 let popups    = [];  // { x,y,text,color,life,vy,big }
 let particles = [];  // { x,y,vx,vy,r,color,life }
 let ripples   = [];  // { x,y,rad,life } — wave 시각화
@@ -1904,6 +1905,9 @@ function render(dt) {
     oy += Math.cos(now / 500) * (hyperPulseActive ? 3 : 0.6);
   }
 
+  renderOx = ox;
+  renderOy = oy;
+
   ctx.save();
   ctx.translate(ox, oy);
 
@@ -1931,19 +1935,21 @@ function render(dt) {
   drawRipples();
   drawChar();
   drawParticles();
+
+  ctx.restore();  // HUD는 shake/wave 영향 없이 고정 위치 렌더링
+
   drawHUD();
 
-  // HYPER 오버레이 (전체 화면 빨간 플래시)
+  // HYPER 오버레이 (전체 화면 빨간 플래시) — HUD 위, shake 없음
   if (isHyper) {
     const alpha = hyperPulseActive
       ? Math.abs(Math.sin(now / 55)) * 0.28   // 빠른 스트로브
       : Math.abs(Math.sin(now / 1800)) * 0.07; // 잔잔한 붉은 기운
     ctx.fillStyle = `rgba(255,20,55,${alpha.toFixed(3)})`;
-    ctx.fillRect(-20, -20, AW + 40, AH + 40);
+    ctx.fillRect(0, 0, AW, AH);
   }
 
   drawPopups();
-  ctx.restore();
 }
 
 function drawHUD() {
@@ -2861,8 +2867,8 @@ function handleTap(cx, cy) {
   const rect   = canvas.getBoundingClientRect();
   const scaleX = AW / rect.width;
   const scaleY = AH / rect.height;
-  const px = (cx - rect.left) * scaleX;
-  const py = (cy - rect.top)  * scaleY;
+  const px = (cx - rect.left) * scaleX - renderOx;
+  const py = (cy - rect.top)  * scaleY - renderOy;
 
   // HUD 소모품 슬롯 탭 (y=28~42, 우측)
   if (py < GY) {
