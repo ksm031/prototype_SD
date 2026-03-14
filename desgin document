@@ -1,418 +1,229 @@
-# STACK DUNGEON — 프로토타입 기획서 v0.1
+# CHOMP CHAIN — 기획서 v0.6
 
-> **대상 독자**: 이 문서는 Claude Code가 모바일 웹 프로토타입을 구현하기 위한 기술 기획서입니다.
-> 판단이 필요한 부분은 `[TODO]`로 표기합니다. 구현 우선순위는 **P0 > P1 > P2** 순입니다.
+> **대상 독자**: 이 문서는 CHOMP CHAIN 프로토타입의 기술 기획서입니다.
+> 코드 수정 전에 `MODULES.md`를 먼저 확인하세요.
 
------
+---
 
 ## 1. 프로젝트 개요
 
-|항목    |내용                                                   |
-|------|-----------------------------------------------------|
-|장르    |모바일 웹 퍼즐 (PC 겸용)                                     |
-|핵심 행위 |몬스터 카드를 선택해 탑에 쌓기                                    |
-|세션 길이 |최대 90초                                               |
-|타겟 플랫폼|모바일 브라우저 (iOS Safari / Android Chrome) 우선, PC 브라우저 호환|
-|기술 스택 |HTML + CSS + JavaScript (단일 파일), Matter.js (물리 엔진)   |
+| 항목 | 내용 |
+|------|------|
+| 장르 | 모바일 웹 퍼즐 로그라이크 |
+| 핵심 행위 | 그리드의 동색 블록 체인을 탭해 캐릭터(Chompy)를 먹이고 HP를 유지 |
+| 세션 길이 | 3 ACT × 4 노드 (노드당 60~120초 제한시간) |
+| 타겟 플랫폼 | 모바일 브라우저 (iOS Safari / Android Chrome), PC 겸용 |
+| 기술 스택 | HTML + CSS + JavaScript (모듈화), Canvas 2D API, LocalStorage |
+| 배포 | GitHub Pages (.github/workflows/pages.yml) |
 
------
+---
 
-## 2. 기술 스택 명세
-
-```
-index.html — 단일 파일로 모든 로직 포함
-├── Matter.js (CDN) — 2D 물리 시뮬레이션
-├── 순수 JavaScript — 게임 로직
-└── CSS — 모바일 우선 레이아웃
-```
-
-**Matter.js CDN**:
-
-```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-```
-
-**캔버스 해상도**: 360×640 기준 (9:16). PC에서는 중앙 정렬, 최대 높이 100vh 유지.
-
------
-
-## 3. 화면 구성 (P0)
-
-### 3-1. 메인 화면
+## 2. 기술 스택
 
 ```
-┌─────────────────────┐
-│   STACK DUNGEON     │  ← 타이틀
-│                     │
-│   최고기록: 0층      │  ← 로컬스토리지에서 읽기
-│   보유 골드: 0 🪙   │
-│                     │
-│  [ 던전 입장 ]       │  ← 탭하면 즉시 인게임 진입
-│                     │
-│  [ 덱 관리 ]        │  ← P1 구현
-└─────────────────────┘
+index.html      CSS 스타일 + HTML 구조 + <script> 태그 (로직 없음)
+js/             14개 모듈 (MODULES.md 참조)
+res/            이미지 리소스 (스프라이트, 배경)
+locale.csv      한/영 번역 원본 (js/locale.js에 내장)
 ```
 
-### 3-2. 인게임 화면
+**Canvas 해상도**: 360×520 (기준). 뷰포트에 맞게 CSS transform으로 스케일링.
+
+---
+
+## 3. 화면 구성
+
+### 3-1. 메인 화면 (#ms)
+- 타이틀, 최장 생존/보유 골드/재료 표시
+- 플레이 버튼 → startRun()
+- 강화 버튼 → showShop()
+
+### 3-2. 인게임 화면 (#gc Canvas)
+- 상단 HUD: HP바, 드레인율, 노드 진행, 소모품 슬롯, 아티팩트 스트립
+- 중앙: 6×7 블록 그리드 (탭 → 체인 먹기)
+- 하단: Chompy 캐릭터 + 소모품 슬롯 3개
+
+### 3-3. 노드 소개 화면 (#si)
+- ACT·노드 번호, 제한시간, 활성 기믹 목록
+- 시작 버튼 → beginNode()
+
+### 3-4. 아티팩트 선택 화면 (#af)
+- 노드 클리어 시 3개 아티팩트 카드 제시
+- common / rare / legendary 등급 구분
+
+### 3-5. 보스 이벤트 화면 (#be)
+- ACT 2노드 클리어 후 확률 등장
+- 악마(리스크/보상) 또는 천사(안전 버프) 선택지
+
+### 3-6. 결과 화면 (#rs)
+- 도달 노드, 생존시간, 블록 수, 콤보, 아티팩트, 골드, 도전과제
+
+### 3-7. 강화 상점 (#ss)
+- 강화 탭: 6개 스탯 (골드 소모)
+- 도전 탭: 15개 도전과제
+- 꾸미기 탭: Lv.4 해금 예정
+
+---
+
+## 4. 게임 루프
+
+### 4-1. 런 진행
 
 ```
-┌─────────────────────┐
-│ 🕐 1:30   높이: 0층  │  ← 상단 HUD
-├─────────────────────┤
-│                     │
-│      [캔버스]        │  ← Matter.js 렌더링 영역
-│   물리 시뮬레이션    │
-│   (탑 쌓기 공간)    │
-│                     │
-│   [바닥 플랫폼]      │
-├─────────────────────┤
-│  착지 위치 선택:     │
-│  [좌] [중] [우]     │  ← 탭으로 착지 지점 선택
-├─────────────────────┤
-│ [카드A] [카드B] [카드C] │  ← 3장 중 1장 선택
-└─────────────────────┘
+startRun()
+  └─ ACT 1~3 순차 진행
+       └─ showNodeIntro() → beginNode() → 게임 루프
+            ├─ HP 드레인 (초당 N점)
+            ├─ 기믹 스폰 타이머
+            └─ 플레이어 탭 → 체인 먹기
+       └─ nodeCleared() → 아티팩트 선택 or 보스 이벤트
+  └─ 3 ACT 완주 → showResult(true)
+  또는
+  └─ HP=0 or 블록 소진 → endGame() → showResult(false)
 ```
 
-### 3-3. 결과 화면
+### 4-2. 프레임 루프 (loop.js)
+- requestAnimationFrame 기반
+- 타이머 처리: HYPER 펄스, 강철/타임봄 스폰, HP 드레인, 기믹 타이머
+- updateChar(dt) → updateBlockAnims(dt) → render(dt)
 
+---
+
+## 5. 그리드 시스템
+
+- **크기**: 6열 × 7행, 셀 50×50px, 오프셋 GX=40px / GY=64px
+- **색상**: red, blue, yellow, green, purple (노드별 3~5개 활성)
+- **체인**: BFS로 동색 인접 블록 묶기 → buildChains()
+- **중력**: 블록 제거 후 위 블록 낙하 → gravity() → updateBlockAnims()
+
+---
+
+## 6. 전투 & 체인
+
+### 체인 먹기 흐름
 ```
-┌─────────────────────┐
-│   세션 종료!         │
-│   최종 높이: N층     │
-│   획득 골드: N 🪙   │
-│                     │
-│  [ 공유하기 📹 ]    │  ← P1
-│  [ 다시 하기 ]      │
-│  [ 메인으로 ]       │
-└─────────────────────┘
-```
-
------
-
-## 4. 게임 루프 (P0)
-
-### 4-1. 세션 진행 순서
-
-```
-1. 세션 시작
-   - 90초 타이머 시작
-   - 바닥 플랫폼 생성 (Matter.js Static Body)
-   - 플레이어 덱에서 카드 3장 무작위 추출
-
-2. 카드 선택 단계 (플레이어 입력 대기)
-   - 화면 하단에 카드 3장 표시
-   - 플레이어가 카드 1장 탭 → 선택된 카드 하이라이트
-   - 플레이어가 착지 위치 탭 (좌/중/우)
-
-3. 낙하 단계
-   - 선택된 몬스터가 지정 X위치에서 캔버스 상단에 생성
-   - Matter.js 중력으로 자연 낙하
-   - 착지 후 1.5초 대기 (안정화 판정)
-
-4. 안정화 판정
-   - 모든 바디의 속도가 임계값(0.5) 이하 → 안정 → 다음 라운드
-   - 바디가 캔버스 밖으로 나가거나 바닥 플랫폼에서 벗어남 → 붕괴 판정
-
-5. 붕괴 판정 시
-   - "COLLAPSED!" 텍스트 오버레이
-   - 0.5초 슬로우모션 (Matter.js timeScale = 0.2)
-   - 2초 후 결과 화면으로 이동
-
-6. 90초 만료 시
-   - 타이머 종료 → 결과 화면으로 이동 (붕괴 없이 종료)
-
-7. 결과 정산
-   - 최종 높이 = 가장 높은 몬스터 바디의 Y 좌표 역산
-   - 획득 골드 = 최종 높이 × 10 (최소 10골드 보장)
-   - 로컬스토리지에 최고기록 / 누적 골드 저장
+탭 → handleTap() → startEat(r,c)
+  → 캐릭터 이동 → runChain(blocks)
+       → 파도식 파괴 (50ms 간격)
+       → finishChain()
+            → HP 회복 + 골드 + 콤보 보상
+            → gravity() → buildChains()
+            → checkOver()
 ```
 
-### 4-2. 높이 계산 방식
+### HP 메카닉
+- 기본 최대HP: 100 + 업그레이드 + 아티팩트
+- 드레인: 노드별 설정값 (초당 2~8점)
+- 회복: chainSize × healMult × recoveryMult
+- 게임오버: HP ≤ 0 또는 블록 소진
 
-```javascript
-// 바닥 플랫폼의 Y좌표를 기준으로 역산
-// 캔버스 높이 = 640px, 바닥 Y = 600px
-// 몬스터 1개 평균 높이 = 40px → 1층 = 40px
+### HYPER 모드
+- 15초마다 3초간 활성화
+- 회복량 ×2, 이동속도 상승
 
-function calcHeight(bodies, floorY) {
-  const topBody = bodies.reduce((min, b) => b.position.y < min ? b.position.y : min, floorY);
-  return Math.floor((floorY - topBody) / 40); // 층 수 반환
-}
-```
+---
 
------
-
-## 5. 물리 엔진 설정 (P0)
-
-```javascript
-const engine = Matter.Engine.create();
-const render = Matter.Render.create({
-  element: document.getElementById('canvas-container'),
-  engine: engine,
-  options: {
-    width: 360,
-    height: 560,        // HUD 영역 제외
-    wireframes: false,  // 실제 스프라이트 렌더링
-    background: '#1a1a2e'
-  }
-});
-
-// 중력 설정
-engine.gravity.y = 1.5; // 기본값 1보다 약간 강하게 (경쾌한 낙하감)
-
-// 바닥 플랫폼 (Static)
-const floor = Matter.Bodies.rectangle(180, 590, 300, 20, {
-  isStatic: true,
-  label: 'floor',
-  render: { fillStyle: '#4a4a8a' }
-});
-```
-
------
-
-## 6. 몬스터 카드 데이터 (P0 구현 대상)
-
-프로토타입에서는 아래 5종만 구현합니다.
-
-```javascript
-const MONSTERS = {
-  slime: {
-    id: 'slime',
-    name: '슬라임',
-    grade: 'normal',
-    // Matter.js Body 설정
-    shape: 'circle',
-    radius: 25,
-    density: 0.002,
-    friction: 0.8,
-    restitution: 0.3,   // 탄성 (0~1)
-    // 시각
-    color: '#7ec850',
-    emoji: '🟢',
-    // 특수 능력 없음
-    special: null
-  },
-
-  skeleton: {
-    id: 'skeleton',
-    name: '해골',
-    grade: 'normal',
-    shape: 'rectangle',
-    width: 30,
-    height: 55,
-    density: 0.001,     // 가벼움 → 불안정
-    friction: 0.3,
-    restitution: 0.1,
-    color: '#e8e8d0',
-    emoji: '💀',
-    special: null
-  },
-
-  jelly: {
-    id: 'jelly',
-    name: '젤리',
-    grade: 'rare',
-    shape: 'circle',
-    radius: 30,
-    density: 0.003,
-    friction: 0.9,
-    restitution: 0.8,   // 높은 탄성 → 위 몬스터 튕겨냄
-    color: '#ff6eb4',
-    emoji: '🩷',
-    special: {
-      type: 'bounce',
-      // 착지 시 위에 쌓인 바디에 상향 impulse 적용
-      // Matter.Body.applyForce(body, pos, { x: 0, y: -0.05 })
-    }
-  },
-
-  dragon_baby: {
-    id: 'dragon_baby',
-    name: '아기 드래곤',
-    grade: 'rare',
-    shape: 'rectangle',
-    width: 50,
-    height: 45,
-    density: 0.005,     // 무거움
-    friction: 0.6,
-    restitution: 0.1,
-    color: '#ff4444',
-    emoji: '🐉',
-    special: {
-      type: 'wind',
-      // 생성 후 3초마다 주변 바디에 랜덤 수평 force 적용
-      // 범위: 반경 80px, force: { x: ±0.02, y: 0 }
-      interval: 3000,
-      range: 80,
-      force: 0.02
-    }
-  },
-
-  wizard: {
-    id: 'wizard',
-    name: '마법사',
-    grade: 'rare',
-    shape: 'rectangle',
-    width: 28,
-    height: 60,
-    density: 0.001,
-    friction: 0.2,      // 낮은 마찰 → 미끄러짐
-    restitution: 0.05,
-    color: '#9b59b6',
-    emoji: '🧙',
-    special: null
-  }
-};
-```
-
------
-
-## 7. 덱 시스템 (P0 — 단순화 버전)
-
-프로토타입에서는 덱 편집 없이 **고정 덱 5장**으로 시작합니다.
-
-```javascript
-// 초기 덱 (로컬스토리지에 저장)
-const DEFAULT_DECK = ['slime', 'slime', 'skeleton', 'jelly', 'dragon_baby'];
-
-// 세션 시작 시 덱을 셔플 후 순환
-// 카드 3장 제시 = 현재 인덱스부터 3장
-// 1장 선택 후 다음 3장으로 이동 (순환)
-```
-
------
-
-## 8. 착지 위치 선택 (P0)
+## 7. 노드 & ACT 구조
 
 ```
-캔버스 너비 360px 기준:
-- 좌: X = 90
-- 중: X = 180
-- 우: X = 270
-
-프로토타입은 3분할만 구현.
-고레벨 확장 시 5분할(72, 144, 180, 216, 288)로 확장 예정.
+ACT 1 — 초원  : 노드 1-1~1-4, 드레인 2~3.5/s, 색상 3~4, 기믹 none/ice/split/mirror
+ACT 2 — 화산  : 노드 2-1~2-4, 드레인 4~5.5/s, 색상 4~5, 기믹 petrified/shield/rot/revive
+ACT 3 — 혼돈  : 노드 3-1~3-4, 드레인 6~8/s,   색상 5,   기믹 fog/earthquake/복합
 ```
 
------
+---
 
-## 9. 골드 및 저장 (P0)
+## 8. 기믹 시스템
 
-```javascript
-// 로컬스토리지 키
-const STORAGE_KEYS = {
-  gold: 'stackdungeon_gold',
-  highscore: 'stackdungeon_highscore',
-  deck: 'stackdungeon_deck'
-};
+| 기믹 | 아이콘 | 효과 |
+|------|--------|------|
+| ice | 🧊 | 블록 잠금 (일정 시간 탭 불가) |
+| split | 🔀 | 파괴 시 인접에 블록 2개 생성 |
+| mirror | 🪞 | 파괴 시 좌우 대칭 블록도 파괴 |
+| petrified | 🗿 | 체인 2 이상일 때만 파괴 가능 |
+| shield | 🛡 | 인접 블록을 폭발로부터 보호 |
+| rot | 🦠 | 10초마다 인접 블록으로 전파 |
+| revive | 💀 | 파괴 후 일정 시간 뒤 부활 |
+| fog | (안개) | 블록 색상 시야 차단 |
+| earthquake | (지진) | 주기적 그리드 섞기 |
 
-// 세션 종료 시 정산
-function settle(finalHeight) {
-  const earned = Math.max(10, finalHeight * 10); // 최소 10골드 보장
-  const current = parseInt(localStorage.getItem(STORAGE_KEYS.gold) || '0');
-  localStorage.setItem(STORAGE_KEYS.gold, current + earned);
+**특수 블록**: firework (십자 폭발), bomb (반경2 폭발), legendary (대량 회복), steel (파괴 불가), timebomb (8초 퓨즈)
 
-  const best = parseInt(localStorage.getItem(STORAGE_KEYS.highscore) || '0');
-  if (finalHeight > best) {
-    localStorage.setItem(STORAGE_KEYS.highscore, finalHeight);
-  }
-  return earned;
-}
+---
+
+## 9. 아티팩트 시스템
+
+- 총 30개: common 16, rare 10, legendary 4
+- 노드 클리어 시 3개 무작위 제시, 1개 선택
+- 가중치: common 60% / rare 30% / legendary 10%
+- 시너지: 특정 2개 조합 시 추가 효과 (8가지)
+
+---
+
+## 10. 소모품 시스템
+
+- 슬롯 3개, 콤보 마일스톤 달성 시 랜덤 지급
+- 6종: 폭탄 💣 / 치료 💊 / 방패 🛡 / 번개 ⚡ / 얼음 🧊 / 변환 🔄
+
+---
+
+## 11. 강화 스탯 (영구)
+
+| ID | 이름 | 효과 |
+|----|------|------|
+| recovery | 회복력 | 체인 회복량 증가 |
+| impact | 충격력 | 콤보 피해 증가 |
+| speed | 속도 | 체인 파괴 속도 증가 |
+| vitality | 생명력 | 최대 HP 증가 |
+| movespeed | 이동속도 | Chompy 이동속도 증가 |
+| maxhp | 최대HP | 런 시작 HP 보너스 |
+
+---
+
+## 12. 저장 데이터 (LocalStorage)
+
+| 키 | 내용 |
+|----|------|
+| cc_gold | 누적 골드 |
+| cc_hs | 최장 생존 시간 (초) |
+| cc_mats | 재료 객체 (JSON) |
+| cc_stat_levels | 스탯 업그레이드 레벨 (JSON) |
+| cc_ach | 달성한 도전과제 ID 배열 (JSON) |
+
+---
+
+## 13. 렌더링 구조 (render.js)
+
+```
+render(dt)
+  ├─ 배경 이미지 (ACT별)
+  ├─ drawHUD()     — HP바, 드레인, 노드 진행, 소모품, 아티팩트 스트립
+  ├─ drawGrid()    — 5패스 (빈슬롯→브릿지→블록→하이라이트→기믹오버레이)
+  ├─ drawChar()    — Chompy 스프라이트
+  ├─ drawParticles / drawFlashes / drawRipples / drawPopups
+  └─ drawPauseOverlay()
 ```
 
------
+---
 
-## 10. 시각/사운드 이펙트 (P0 — 최소 구현)
+## 14. 구현 현황
 
-|이벤트   |이펙트                            |
-|------|-------------------------------|
-|카드 선택 |선택 카드 테두리 하이라이트                |
-|몬스터 낙하|착지 시 흰색 파티클 2~3개               |
-|안정화 성공|높이 카운터 +1 애니메이션                |
-|붕괴    |0.5초 슬로우모션 + 화면 흔들림 (CSS shake)|
-|세션 종료 |골드 획득 숫자 카운트업 애니메이션            |
+### 완료
+- [x] 3 ACT × 4 노드 로그라이크 흐름
+- [x] 6×7 그리드 + BFS 체인 시스템
+- [x] HP 드레인 생존 메카닉
+- [x] 30개 아티팩트 + 8개 시너지
+- [x] 9종 기믹 + 특수 블록
+- [x] 소모품 6종
+- [x] 보스 이벤트 4종
+- [x] HYPER 모드
+- [x] 영구 강화 스탯 6종
+- [x] 도전과제 15개
+- [x] 한/영 로케일
+- [x] Canvas 2D 풀 렌더링
+- [x] 코드 모듈화 (14개 JS 모듈)
 
-**사운드**: 프로토타입에서는 생략 (P1에서 Web Audio API로 추가).
-
------
-
-## 11. 슬로우모션 + 공유 (P1)
-
-```javascript
-// 붕괴 감지 시 슬로우모션
-function onCollapse() {
-  engine.timing.timeScale = 0.15; // 슬로우모션
-  setTimeout(() => {
-    engine.timing.timeScale = 1.0;
-    showResultScreen();
-  }, 2000); // 실제 시간 기준 2초 (슬로우모션 중 ~0.3초 게임 시간)
-}
-
-// 공유 기능 (P1) — canvas.toBlob()으로 스크린샷 캡처 후 Web Share API
-async function shareResult(height, gold) {
-  const canvas = document.querySelector('canvas');
-  canvas.toBlob(async (blob) => {
-    const file = new File([blob], 'stackdungeon.png', { type: 'image/png' });
-    if (navigator.share) {
-      await navigator.share({
-        title: `STACK DUNGEON — ${height}층 달성!`,
-        text: `${height}층까지 쌓았다! 골드 ${gold}개 획득 🪙`,
-        files: [file]
-      });
-    }
-  });
-}
-```
-
------
-
-## 12. 구현 우선순위 요약
-
-### P0 — 프로토타입 필수 (첫 구현)
-
-- [ ] Matter.js 물리 엔진 세팅 (바닥, 중력, 충돌)
-- [ ] 5종 몬스터 바디 생성 및 낙하
-- [ ] 카드 3장 제시 UI + 착지 위치 선택 (좌/중/우)
-- [ ] 안정화 판정 + 붕괴 판정 로직
-- [ ] 90초 타이머
-- [ ] 높이 계산 + 골드 정산
-- [ ] 로컬스토리지 저장 (골드, 최고기록)
-- [ ] 붕괴 슬로우모션 (Matter.js timeScale)
-- [ ] 메인 → 인게임 → 결과 화면 전환
-
-### P1 — 프로토타입 완성도
-
-- [ ] 몬스터 특수 능력 (jelly bounce, dragon_baby wind)
-- [ ] 파티클 이펙트
-- [ ] 공유하기 (Web Share API + canvas 캡처)
-- [ ] 덱 관리 화면
-- [ ] 카드 강화 UI (골드 소모)
-
-### P2 — 추후 확장
-
-- [ ] 던전 테마 (흔들리는 바닥 등 바닥 플랫폼 변형)
-- [ ] 착지 위치 5분할
-- [ ] 글로벌 랭킹
+### 추후 과제
+- [ ] 꾸미기 탭 콘텐츠 (Lv.4 이상)
 - [ ] 사운드 (Web Audio API)
-- [ ] 영상 자동 생성 (MediaRecorder API)
-
------
-
-## 13. 파일 구조
-
-```
-index.html  ← 단일 파일. 모든 CSS, JS 인라인 포함.
-```
-
-분리 파일 없이 `index.html` 하나로 완결합니다. 로컬에서 파일을 열거나 GitHub Pages로 바로 배포 가능해야 합니다.
-
------
-
-## 14. 미결 사항 (구현 전 확인 필요)
-
-|#|항목                        |기본값                     |
-|-|--------------------------|------------------------|
-|1|몬스터 시각화 — 이모지 사용 vs CSS 도형|이모지 우선 (빠른 프로토타입)       |
-|2|붕괴 조건 — 캔버스 이탈 기준 Y값      |캔버스 하단 + 50px           |
-|3|안정화 판정 속도 임계값             |velocity magnitude < 0.5|
-|4|배경 테마                     |다크 던전 (#1a1a2e)         |
+- [ ] 추가 아티팩트/기믹
