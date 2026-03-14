@@ -35,7 +35,7 @@ function bfs(sr, sc, id, vis) {
     if (vis[r][c]) continue;
     vis[r][c] = true;
     grid[r][c].chainId = id;
-    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel || grid[r][c].ice || grid[r][c].rot || grid[r][c].shield) continue;
+    if (color === 'legendary' || grid[r][c].item || grid[r][c].steel || grid[r][c].ice || grid[r][c].rot || grid[r][c].shield || grid[r][c].mirror) continue;
     for (const [nr, nc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
       if (inB(nr, nc) && !vis[nr][nc] && grid[nr][nc]?.color === color)
         q.push([nr, nc]);

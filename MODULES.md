@@ -126,7 +126,7 @@ config → locale → data → state → effects → grid → character
 - `mkBlock(color)` — 블록 객체 생성
 - `initGrid()` — 그리드 초기화 (랜덤 블록 배치)
 - `buildChains()` — 동색 BFS로 전체 체인 ID 재계산
-- `bfs(sr, sc, id, vis)` — 단일 체인 탐색
+- `bfs(sr, sc, id, vis)` — 단일 체인 탐색 (legendary/item/steel/ice/rot/shield/mirror는 체인 확산 불가)
 - `getChain(id)` — 체인 ID에 속한 블록 배열 반환
 - `inB(r, c)` — 그리드 범위 체크
 - `isProtectedByShield(r, c)` — 방패 보호 여부 확인

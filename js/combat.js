@@ -23,11 +23,12 @@ function startEat(r, c) {
   const chain = getChain(block.chainId);
 
   if (chain.length === 1) {
+    const isMirrorBlock = !!block.mirror;
     removeBlock(r, c);
     sBlocks++;
-    sGold += Math.round(char.goldPerBlock * char.goldMult);
-    healFromBlock(1);
-    popup(char.x, char.y - 44, '…', '#888899');
+    sGold += Math.round(char.goldPerBlock * char.goldMult * (isMirrorBlock ? 2 : 1));
+    if (!isMirrorBlock) healFromBlock(1);
+    popup(char.x, char.y - 44, isMirrorBlock ? '🪞 ×2G' : '…', isMirrorBlock ? '#aaccff' : '#888899');
     char.state = 'returning';
     safeTimeout(() => { gravity(); goBase(); checkOver(); }, 300);
     return;
